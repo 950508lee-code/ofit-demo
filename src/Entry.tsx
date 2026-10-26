@@ -1,0 +1,225 @@
+import {useEffect, useState} from 'react';
+import {HEADER, buildCatalog, decode, parseCsv, toCsv, type Built} from './catalog';
+import type {OrgId} from './model';
+import {ruleLabel} from './schedule';
+import {initialState, login, newOrgId, orgName, registerOrg, signup, unitsOfOrg, type State, deptName, roleOf
+} from './store';
+import {UnitPicker, dutiesOf} from './ui';
+import {DeptBrowse} from './views/DeptPicker';
+import {deptPath} from './store';
+
+/** 첫 화면 — 가입한 사람으로 들어가기, 가입하기, 조직 등록하기. */
+export function Login({s, setS}: {s: State; setS: (s: State) => void}) {
+  const [mode, setMode] = useState<'home' | 'join' | 'org'>('home');
+  if (mode === 'join') return <Signup s={s} setS={setS} onCancel={() => setMode('home')} />;
+  if (mode === 'org') return <RegisterOrg s={s} onCancel={() => setMode('home')} onDone={n => { setS(n); setMode('home'); }} />;
+  return (
+    <div className="flow">
+      <h1 className="logo" data-logo>OFIT</h1>
+      <p className="lead">업무를 고르면 반복업무가 저절로 들어옵니다</p>
+      {s.people.length > 0 && <p className="choices-label">가입한 사람</p>}
+      <div className="choices">
+        {s.people.map(p => (
+          <button key={p.id} className="choice" onClick={() => setS(login(s, p.id))}>
+            <span>{p.name}</span>
+            <small>{[deptName(s, p.deptId) || orgName(s, p.org), roleOf(s, p.id)].filter(Boolean).join(' · ')}</small>
+          </button>
+        ))}
+      </div>
+      <div className="flow-foot">
+        <button className="primary wide" onClick={() => setMode('join')}>가입하기</button>
+        <button className="ghost wide" onClick={() => setMode('org')}>조직 등록하기</button>
+        <button className="textbtn reset" onClick={() => setS(initialState())}>처음 상태로 되돌리기</button>
+      </div>
+    </div>
+  );
+}
+
+const download = (name: string, text: string) => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: 'text/csv;charset=utf-8'}));
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+/** 조직 등록 — 이름과 업무 기준표 파일 하나. 이것만 있으면 어느 조직이든 쓸 수 있다. */
+function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onDone: (s: State) => void}) {
+  const [step, setStep] = useState<'name' | 'file' | 'check'>('name');
+  const [name, setName] = useState('');
+  const [orgId] = useState(newOrgId);
+  const [built, setBuilt] = useState<Built | null>(null);
+  const [fileName, setFileName] = useState('');
+  const taken = s.orgs.some(o => o.name === name.trim());
+  const sample = s.orgs[0];
+
+  if (step === 'name') {
+    const ok = name.trim() && !taken;
+    return (
+      <div className="flow">
+        <button className="textbtn close" onClick={onCancel}>취소</button>
+        <h1>조직 이름을 입력해 주세요</h1>
+        <input className="search big" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="조직 이름" aria-label="조직 이름"
+          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && ok) setStep('file'); }} />
+        {taken && <p className="err">이미 등록된 조직입니다</p>}
+        <div className="flow-foot">
+          <button className="primary wide" disabled={!ok} onClick={() => setStep('file')}>다음</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'file') {
+    const read = async (f: File) => {
+      setFileName(f.name);
+      setBuilt(buildCatalog(orgId, parseCsv(decode(await f.arrayBuffer()))));
+      setStep('check');
+    };
+    return (
+      <div className="flow">
+        <button className="textbtn close" onClick={() => setStep('name')}>이전</button>
+        <h1>업무 기준표를 올려 주세요</h1>
+        <p className="lead">네 칸짜리 표 하나면 됩니다. 엑셀은 CSV로 저장해서 올려 주세요.</p>
+        <table className="sheet">
+          <thead><tr>{HEADER.map(h => <th key={h}>{h}</th>)}</tr></thead>
+          <tbody>
+            <tr><td>경영지원</td><td>예산·회계</td><td>지출결의 마감</td><td>매월 25일</td></tr>
+            <tr><td>경영지원</td><td>예산·회계</td><td>분기 예산 집행률 보고</td><td>분기 시작월 10일</td></tr>
+          </tbody>
+        </table>
+        <p className="hint">주기는 매일 · 매주 월요일 · 매월 15일 · 매월 말일 · 매월 넷째 주 월요일 · 분기 시작월 말일 처럼 씁니다</p>
+        <div className="links">
+          <button className="textbtn" onClick={() => download('업무기준표_양식.csv', toCsv([], []))}>빈 양식 받기</button>
+          {sample && <button className="textbtn" onClick={() => download(`${sample.name}_업무기준표.csv`, toCsv(unitsOfOrg(s, sample.id), s.duties))}>{sample.name} 기준표 예시 받기</button>}
+        </div>
+        <div className="flow-foot">
+          <label className="primary wide filebtn">
+            파일 고르기
+            <input type="file" accept=".csv,text/csv" onChange={e => { const f = e.target.files?.[0]; if (f) read(f); }} />
+          </label>
+        </div>
+      </div>
+    );
+  }
+
+  const b = built!;
+  const ok = b.units.length > 0;
+  return (
+    <div className="flow">
+      <button className="textbtn close" onClick={() => setStep('file')}>다른 파일 올리기</button>
+      <h1>{name.trim()}</h1>
+      <p className="lead">{fileName}</p>
+      {ok ? (
+        <ul className="ready">
+          {b.series.map(x => {
+            const us = b.units.filter(u => u.series === x);
+            const n = b.duties.filter(d => us.some(u => d.unitIds.includes(u.id))).length;
+            return <li key={x}><b>{x}</b><span>단위업무 {us.length}개 · 반복업무 {n}개</span></li>;
+          })}
+        </ul>
+      ) : <p className="err">읽을 수 있는 줄이 없습니다. 네 칸(직렬, 단위업무, 반복업무, 주기)이 맞는지 확인해 주세요.</p>}
+      {b.bad.length > 0 && (
+        <div className="badlines">
+          <p className="err">읽지 못한 줄 {b.bad.length}개는 빼고 등록합니다</p>
+          <ul>{b.bad.slice(0, 5).map(x => <li key={x.line}>{x.line}번째 줄 · {x.text}</li>)}</ul>
+        </div>
+      )}
+      <div className="flow-foot">
+        <button className="primary wide" disabled={!ok} onClick={() => onDone(registerOrg(s, orgId, name.trim(), b.units, b.duties))}>
+          {ok ? `등록하기 · 단위업무 ${b.units.length}개 · 반복업무 ${b.duties.length}개` : '등록할 수 없습니다'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** 가입 — 이름 → 조직 → 업무 여러 개 → 반복일정이 들어간다. */
+function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCancel: () => void}) {
+  const [step, setStep] = useState<'name' | 'org' | 'dept' | 'units' | 'done'>('name');
+  const [deptId, setDeptId] = useState('');
+  const [name, setName] = useState('');
+  const [org, setOrg] = useState<OrgId | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+
+  if (step === 'name') {
+    return (
+      <div className="flow">
+        <button className="textbtn close" onClick={onCancel}>취소</button>
+        <h1>이름을 입력해 주세요</h1>
+        <input className="search big" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="이름" aria-label="이름"
+          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && name.trim()) setStep('org'); }} />
+        <div className="flow-foot">
+          <button className="primary wide" disabled={!name.trim()} onClick={() => setStep('org')}>다음</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'org') {
+    return (
+      <div className="flow">
+        <button className="textbtn close" onClick={() => setStep('name')}>이전</button>
+        <h1>어느 조직에서 일하나요?</h1>
+        <p className="lead">조직을 고르면 그 조직의 업무가 나옵니다</p>
+        <div className="choices">
+          {s.orgs.map(o => (
+            <button key={o.id} className="choice" onClick={() => { setOrg(o.id); setStep('dept'); }}>
+              <span>{o.name}</span>
+              <small>업무 {unitsOfOrg(s, o.id).length}개</small>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'dept') {
+    return (
+      <div className="flow">
+        <button className="textbtn close" onClick={() => setStep('org')}>이전</button>
+        <h1>어느 부서에서 일하나요?</h1>
+        <p className="lead">{orgName(s, org!)} 조직표에서 고르세요. 없으면 그 자리에 만들 수 있습니다</p>
+        <DeptBrowse s={s} org={org!} onPick={id => { setDeptId(id); setStep('units'); }}
+          onCreate={(n, id) => { setS(n); setDeptId(id); setStep('units'); }} />
+      </div>
+    );
+  }
+
+  if (step === 'units') {
+    return (
+      <UnitPicker s={s} org={org!} title="맡은 업무를 모두 고르세요" lead={`${deptPath(s, deptId)} · 여러 개 고를 수 있습니다`}
+        doneLabel="고르기" back={{label: '이전', onClick: () => setStep('dept')}}
+        onDone={ids => { setPicked(ids); setStep('done'); }} />
+    );
+  }
+
+  return <Filling s={s} units={picked} onStart={() => setS(signup(s, name.trim(), org!, deptId, picked))} />;
+}
+
+/** 고른 업무의 반복일정이 하나씩 들어가는 화면. */
+export function Filling({s, units, onStart}: {s: State; units: string[]; onStart: () => void}) {
+  const duties = [...new Set(s.units.filter(u => units.includes(u.id)).flatMap(u => dutiesOf(s, u)))];
+  const step = Math.min(60, 1400 / Math.max(duties.length, 1));
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (shown >= duties.length) return;
+    const t = setTimeout(() => setShown(n => n + 1), step);
+    return () => clearTimeout(t);
+  }, [shown, duties.length, step]);
+  const done = shown >= duties.length;
+
+  return (
+    <div className="flow">
+      <h1>{done ? `반복업무 ${duties.length}개가\n들어갔습니다` : '반복업무를\n넣고 있습니다'}</h1>
+      <p className="lead">{done ? '때가 되면 할 일에 저절로 올라옵니다' : `${shown} / ${duties.length}`}</p>
+      <ul className="filling">
+        {duties.slice(0, shown).map(d => (
+          <li key={d.id}><span>{d.title}</span><small>{ruleLabel(d.rule)}</small></li>
+        ))}
+      </ul>
+      <div className="flow-foot">
+        <button className="primary wide" disabled={!done} onClick={onStart}>시작하기</button>
+      </div>
+    </div>
+  );
+}
