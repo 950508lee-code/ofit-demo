@@ -1,10 +1,14 @@
-import {useCallback, useEffect, useRef} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 
 const EASE_OUT = 'cubic-bezier(.16,1,.3,1)'; // 빠르게 시작해 길게 멈춘다
 const EASE_MOVE = 'cubic-bezier(.75,0,.2,1)'; // 천천히 떠나 빠르게 이동, 부드럽게 앉는다
 
+/** 스플래시 배경 영상(public/splash.webm·mp4, 앱에 함께 넣어 외부 요청 없음). 둘 다 못 읽으면 영상 없이 지금처럼. */
+const VIDEO = './splash';
+
 /**
- * 스플래시 — OFIT 네 글자가 선 아래에서 차례로 솟아오르고,
+ * 스플래시 — 뒤에서 모션그래픽(시간 선 위로 점이 떨어져 날짜 칸에 앉는다)이 흐르는 동안
+ * OFIT 네 글자가 선 아래에서 차례로 솟아오르고,
  * 끝나면 로고가 다음 화면의 로고 자리([data-logo])로 그대로 날아가 앉는다.
  * 누르거나 키를 치면 바로 나가는 단계로 넘어간다.
  */
@@ -47,17 +51,28 @@ export function Splash({onDone}: {onDone: () => void}) {
     }
   }, [onDone]);
 
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  // 영상은 밝은 화면용(흰 바탕). 어두운 화면·움직임 줄이기에서는 쓰지 않는다
+  const dark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const [video, setVideo] = useState(!reduce && !dark);
   useEffect(() => {
     document.body.classList.add('splashing');
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const t = setTimeout(leave, reduce ? 500 : 1500);
+    // 영상이 있으면 점이 칸에 앉아 초록(끝냄)으로 바뀔 때까지(약 4초) 머문다. 누르면 바로 넘어간다. 움직임 줄이기면 영상 없이 짧게
+    const t = setTimeout(leave, reduce ? 500 : video ? 4200 : 1500);
     window.addEventListener('keydown', leave);
     return () => { clearTimeout(t); window.removeEventListener('keydown', leave); document.body.classList.remove('splashing'); };
-  }, [leave]);
+  }, [leave, video, reduce]);
 
   return (
     <div className="splash" onClick={leave} role="presentation">
-      <div ref={veil} className="sp-veil" />
+      <div ref={veil} className="sp-veil">
+        {video && (
+          <video className="sp-video" autoPlay muted playsInline preload="auto" aria-hidden="true">
+            <source src={`${VIDEO}.webm`} type="video/webm" />
+            <source src={`${VIDEO}.mp4`} type="video/mp4" onError={() => setVideo(false)} />
+          </video>
+        )}
+      </div>
       <div ref={logo} className="sp-logo" aria-label="OFIT">
         {'OFIT'.split('').map((c, i) => (
           <span key={i} className="sp-mask"><span style={{animationDelay: `${120 + i * 70}ms`, animationTimingFunction: EASE_OUT}}>{c}</span></span>

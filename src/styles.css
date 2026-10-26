@@ -1226,3 +1226,6 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .start-flow .start-join { margin-top: 28px; }
 .start-flow .start-join .choice.acct span { width: auto; }
 .signup-step { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--sub); }
+/* 스플래시 배경 모션그래픽(2026-10-26): 화면을 덮되 글자는 앱 글자 그대로 위에 */
+.sp-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sp-logo { z-index: 1; }
