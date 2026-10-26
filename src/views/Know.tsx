@@ -13,7 +13,7 @@ import {showSpot} from './spot';
  * 업무지식 — '어떻게 하지?'(2026-10-26 사용자 판정). 조직의 업무 기준표 전체를 왼쪽에 두고, 고른 업무의 지식을 문서로 읽는다.
  * 내가 맡지 않은 업무도 읽을 수 있다. 업무 안내는 지금처럼 우리 부서 것만(공통 업무지식은 나중).
  * 지난 기록은 내 업무가 주인이고, 여기서는 한 줄 요약과 '보기'(오른쪽 판)만 둔다.
- * 폰: 고른 업무가 없으면 목록, 고르면 문서(위에 '업무 목록').
+ * 폰: 고른 업무가 없으면 목록, 고르면 문서(위에 '업무 목록'). 좁은 PC(1280 미만): 목록 대신 위쪽 고르기 칸 — 문서 폭을 먼저.
  */
 export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id: string | null; setId: (id: string | null) => void; spot?: Spot | null}) {
   const goWork = useWorkNav();
@@ -43,6 +43,17 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
     <div className={`know${id ? ' reading' : ''}`}>
       {making && <NewUnitModal s={s} setS={setS} toast={toast} onClose={() => setMaking(false)} />}
       <div className="know-top"><StandardCard s={s} setS={setS} toast={toast} /></div>
+      <div className="know-pick">
+        <label htmlFor="know-pick">업무</label>
+        <select id="know-pick" value={curId ?? ''} onChange={e => setId(e.target.value)}>
+          {series.map(x => (
+            <optgroup key={x} label={x}>
+              {all.filter(v => v.series === x).map(v => <option key={v.id} value={v.id}>{v.name}{held.includes(v.id) ? ' (맡음)' : ''}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        <button className="textbtn" onClick={() => setMaking(true)}>업무 만들기</button>
+      </div>
       <div className="know-grid">
         <nav className="know-list" aria-label="업무 목록">
           <h2 className="m-only-block">업무지식</h2>

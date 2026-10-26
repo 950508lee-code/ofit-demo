@@ -15,7 +15,7 @@ const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAl
 const txt = s => ($(s)?.innerText ?? '').split(String.fromCharCode(10)).join(' / ');
 const who = () => $('button.who').click();
 const nav = t => $$('.nav button').find(b => b.innerText.startsWith(t) && getComputedStyle(b).display !== 'none').click();
-const alarm = () => $('.topalarm').click();
+const alarm = () => $('.bell').click();
 const know = async u => { nav('업무지식'); await wait(500); $$('.kl-g button').find(b => b.innerText.startsWith(u)).click(); await wait(500); };
 // 사람 바꾸기: 들어와 있으면 시연용 계정 바꾸기로, 아니면 로그인 화면에서
 const logoutTo = async n => {

@@ -3,16 +3,15 @@ import {usePlaceNav} from './placeNav';
 import {NewUnitModal, UnitStandard} from './Standard';
 import {RepeatList} from './RepeatList';
 import {SettleFlow} from '../Settle';
-import {dateLabel, monthDay, occurrences, ruleLabel, ymd} from '../schedule';
+import {dateLabel, monthDay, occurrences, ruleLabel} from '../schedule';
 import {
   cancelHandover, deptName, dispatchProgress, doneForMe, dutiesOfUnit, handoverableTasks, meOf, myDispatches, myUnits, nameOf, nextDateOf,
-  orgOf, pendingOf, recordsOfUnit, releaseUnits, sendHandover, sentDispatches, seriesById, takeUnits, today, unitById,
+  orgOf, pendingOf, releaseUnits, sendHandover, sentDispatches, seriesById, takeUnits, today, unitById,
 } from '../store';
 import type {Handover} from '../model';
 import {HandoverFlow} from '../Handover';
 import {UnitPicker} from '../ui';
 import type {Ctx} from './common';
-import {Cells} from './shapes';
 import {Asks, DutyRows, Records, YearBeat} from './Place';
 import {placeColor} from './placeColor';
 
@@ -20,7 +19,7 @@ export type WorkSub = {kind: 'main'} | {kind: 'pick'} | {kind: 'send'; preselect
 
 /**
  * 내 업무 — '무엇을 해야 하지?'(2026-10-26 사용자 판정: 실행 공간과 지식 공간을 나눈다. 화면은 분리, 데이터는 통합).
- * 맡은 업무마다 접힌 줄(다음 할 일·이번 달 칸) → 펼치면 반복업무·받은 요청·지난 기록·업무 표준. 그 아래 반복 할 일 · 인수인계 · 보낸 요청.
+ * 맡은 업무마다 접힌 줄(다음 할 일·처리할 받은 요청) → 펼치면 반복업무·받은 요청·지난 기록·업무 표준. 그 아래 반복 할 일 · 인수인계 · 보낸 요청.
  * 처리 방법·업무 안내는 업무지식(Know.tsx)에서 읽는다. sub 가 main 이 아니면 전용 흐름(업무 바꾸기·인수인계·자리 잡기) 화면을 통째로 돌려준다.
  */
 export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome, focus}: Ctx & {
@@ -133,7 +132,8 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome, focus}
 }
 
 /**
- * 맡은 업무 하나 — 접힌 채로: 이름 · 다음 할 일 · 이번 달 칸(끝낸 회차). 펼치면 반복업무 줄 · 달마다 몰리는 때 · 받은 요청 · 지난 기록 · 업무 표준.
+ * 맡은 업무 하나 — 접힌 채로: 이름 · 다음 할 일 · (있으면) 처리할 받은 요청 수. 완료 회차는 보이지 않는다
+ * (반복업무는 완료 표시가 의무가 아니라서 '3번 중 2번'이 실적처럼 읽힌다, 2026-10-26 사용자 판정). 펼치면 반복업무 줄 · 달마다 몰리는 때 · 받은 요청 · 지난 기록 · 업무 표준.
  * '업무지식'은 같은 업무의 업무 안내·처리 순서로 간다.
  */
 function UnitBlock({s, setS, open, setOpen, toast, unitId, expanded, onToggle, onGive}: Ctx & {
@@ -145,10 +145,6 @@ function UnitBlock({s, setS, open, setOpen, toast, unitId, expanded, onToggle, o
   const p = pendingOf(s, unitId);
   const next = nextDateOf(s, unitId);
   const nextTitles = next ? duties.filter(d => occurrences(d.rule, next, next).length && d.rule.kind !== 'daily').map(d => d.title) : [];
-  // 이번 달 회차(매일 빼고) 중 같은 부서에서 끝낸 것
-  const day = today(), from = day.slice(0, 8) + '01', to = ymd(new Date(+day.slice(0, 4), +day.slice(5, 7), 0));
-  const doneSet = new Set(recordsOfUnit(s, unitId).map(r => `${r.dutyId}@${r.date}`));
-  const occ = duties.filter(d => d.rule.kind !== 'daily').flatMap(d => occurrences(d.rule, from, to).map(x => `${d.id}@${x}`));
   const asks = myDispatches(s).filter(d => d.unitId === unitId && !doneForMe(s, d)).length;
   return (
     <div className={`card wu${expanded ? ' open' : ''}`} id={`wu-${unitId}`} style={{'--pc': placeColor(s, {kind: 'unit', id: unitId})} as CSSProperties}>
@@ -156,10 +152,7 @@ function UnitBlock({s, setS, open, setOpen, toast, unitId, expanded, onToggle, o
         <button className="wu-t" aria-expanded={expanded} onClick={onToggle}>
           <span className="nm"><span className="swatch" aria-hidden="true" />{u.name}</span>
           <span className="nx">{p ? `${nameOf(s, p.to)} 님에게 인수인계 중` : next ? <>다음 <b>{monthDay(next)}</b> {nextTitles.join(', ')}</> : '매일 하는 일만 있습니다'}</span>
-          <span className="pr">
-            {occ.length > 0 && <Cells n={occ.filter(k => doneSet.has(k)).length} of={occ.length} label="이번 달 끝냄" />}
-            {asks > 0 && <span className="ask">받은 요청 {asks}</span>}
-          </span>
+          {asks > 0 && <span className="pr"><span className="ask">처리할 받은 요청 {asks}</span></span>}
         </button>
         <span className="wu-acts">
           <button className="textbtn" onClick={() => goPlace({kind: 'unit', id: unitId})}>업무지식</button>

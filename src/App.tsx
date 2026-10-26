@@ -15,7 +15,7 @@ import {AccountSwitch} from './views/AccountSwitch';
 import {PlaceNav, WorkNav, type Place, type Spot} from './views/placeNav';
 import {Home} from './views/Home';
 import {Calendar} from './views/Calendar';
-import {Notices} from './views/Notices';
+import {NoticePanel, waiting} from './views/Notices';
 import {Me} from './views/Me';
 import type {WorkSub} from './views/Work';
 import {Compose, type ComposePreset} from './views/Compose';
@@ -23,7 +23,7 @@ import {DispatchCard} from './views/Dispatch';
 import {SearchResults} from './views/Search';
 import {dateLabel} from './schedule';
 
-type View = 'home' | 'calendar' | 'work' | 'know' | 'notices' | 'me' | 'search';
+type View = 'home' | 'calendar' | 'work' | 'know' | 'me' | 'search';
 
 export default function App() {
   const [s, setS] = useState<State>(loadState);
@@ -157,6 +157,15 @@ export default function App() {
     const u = unitById(s, open.id)!;
     panel = <UnitPanel key={u.id} {...panelProps} unit={u} onGive={() => { setOpen(null); setView('work'); setWorkSub({kind: 'send', preselect: u.id}); }} />;
   }
+  if (open?.kind === 'notices') {
+    // 알림을 누르면 그 일이 있는 곳으로: 받을 인수인계·받은 요청은 오늘, 보낸 것의 결과는 내 업무, 업무 표준은 업무지식
+    panel = <NoticePanel key="notices" s={s} setS={setS} onClose={onClose} onGo={n => {
+      const wait = waiting(s, n);
+      if (n.kind === 'standard') return n.unitId && !wait ? goPlace({kind: 'unit', id: n.unitId}) : go('know');
+      const to: View = n.go === 'me' ? 'work' : 'home';
+      go(to, () => { if (to === 'home') setSel(today()); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); });
+    }} />;
+  }
   if (open?.kind === 'recs') {
     const u = unitById(s, open.id);
     if (u) panel = <RecsCard key={`recs${u.id}`} s={s} onClose={onClose} unit={u} />;
@@ -194,9 +203,12 @@ export default function App() {
         <aside className="side">
           <div className="brand-row">
             <div className="brand" data-logo>OFIT</div>
-            <button className={`topalarm${view === 'notices' ? ' on' : ''}`} aria-current={view === 'notices' ? 'page' : undefined} onClick={() => go('notices')}
-              aria-label={unread ? `알림 ${unread}개 안 읽음` : '알림'}>
-              알림{unread > 0 && <em className="badge">{unread}</em>}
+            {/* 알림: 오른쪽 위 종(PC는 화면 오른쪽 위에 떠 있음). 누르면 오른쪽 판으로 열리고, 열려 있던 상세 판은 닫힌다 */}
+            <button className={`bell${open?.kind === 'notices' ? ' on' : ''}`} aria-expanded={open?.kind === 'notices'}
+              aria-label={unread ? `알림, 안 읽은 알림 ${unread}개` : '알림'} title="알림"
+              onClick={() => (open?.kind === 'notices' ? onClose() : setOpen({kind: 'notices'}))}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>
+              {unread > 0 && <em className="badge">{unread}</em>}
             </button>
           </div>
           <button className="primary newbtn" onClick={() => setCompose({target: 'me', date: view === 'home' || view === 'calendar' ? sel : today()})}>일정 등록</button>
@@ -242,7 +254,6 @@ export default function App() {
             {!place && view === 'home' && <Home onSettle={() => go('work', () => setWorkSub({kind: 'settle', mode: 'empty'}))} {...ctx} sel={sel} setSel={setSel} onCompose={p => setCompose({...p, target: 'me'})} />}
             {!place && view === 'search' && <SearchResults s={s} q={q} />}
             {!place && view === 'calendar' && <Calendar {...ctx} sel={sel} setSel={setSel} />}
-            {!place && view === 'notices' && <Notices s={s} setS={setS} onGo={n => go(n.go === 'me' ? (n.kind === 'standard' ? 'know' : 'work') : n.go!, () => { if (n.go === 'home') setSel(today()); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); })} />}
             {!place && view === 'me' && <Me onSwitch={n => { setS(n); setViewing(true); go('home'); setSel(today()); }} s={s} setS={setS} perm={perm} setPerm={setPerm} />}
             {panel && <div className={`pw${leaving ? ' out' : ''}`}>{panel}</div>}
           </div>

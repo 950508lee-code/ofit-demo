@@ -76,7 +76,7 @@ export const initialState = (): State => ({
   guides: {},
 });
 
-const KEY = 'ofit-demo-v19';
+const KEY = 'ofit-demo-v20';
 export function loadState(): State {
   try {
     const raw = localStorage.getItem(KEY);
@@ -193,21 +193,23 @@ const pruneNotices = (s: State): State => {
 const unitNames = (s: State, ids: string[]) => s.units.filter(u => ids.includes(u.id)).map(u => u.name).join(', ');
 
 /** 넘겨주기 — 받는 사람에게 요청이 간다. 받기 전까지 담당은 그대로이고 보낸 사람이 취소할 수 있다. */
-export const sendHandover = (s: State, to: string, unitIds: string[], taskIds: string[], note: string): State =>
-  addNotice({
+export const sendHandover = (s: State, to: string, unitIds: string[], taskIds: string[], note: string): State => {
+  const hid = uid();
+  return addNotice({
     ...s,
-    handovers: [...s.handovers, {id: uid(), from: s.me, to, unitIds, taskIds, date: today(), at: new Date().toISOString(), note, state: 'pending'}],
+    handovers: [...s.handovers, {id: hid, from: s.me, to, unitIds, taskIds, date: today(), at: new Date().toISOString(), note, state: 'pending'}],
   }, {
-    to, kind: 'handover', go: 'home',
+    to, kind: 'handover', go: 'home', handoverId: hid,
     title: `${nameOf(s, s.me)} 님이 인수인계를 보냈습니다`,
     body: [unitNames(s, unitIds), taskIds.length ? `일정 ${taskIds.length}개` : ''].filter(Boolean).join(' · '),
   });
+};
 
 const settle = (s: State, id: string, state: 'accepted' | 'declined' | 'cancelled'): State => {
   const h = s.handovers.find(x => x.id === id);
   if (!h || h.state !== 'pending') return s;
   const n: State = state === 'cancelled' ? s : addNotice(s, {
-    to: h.from, kind: 'handover', go: 'me',
+    to: h.from, kind: 'handover', go: 'me', handoverId: h.id,
     title: `${nameOf(s, h.to)} 님이 인수인계를 ${state === 'accepted' ? '받았습니다' : '거절했습니다'}`,
     body: unitNames(s, h.unitIds) || `일정 ${h.taskIds.length}개`,
   });
@@ -464,7 +466,7 @@ export function propose(s: State, x: {unitId?: string; newUnit?: {name: string; 
   let n: State = {...s, proposals: [...s.proposals, p]};
   const series = seriesOfProposal(s, p);
   if (canApprove(s, series)) return approveProposal(n, p.id);
-  for (const a of reviewersOf(s, series)) n = addNotice(n, {to: a, kind: 'standard', go: 'me', title: `${nameOf(s, s.me)} 님이 ${propLabel(s, p)}${josa(propLabel(s, p), '을', '를')} 올렸습니다`, body: p.duties.map(d => d.title).join(', ')});
+  for (const a of reviewersOf(s, series)) n = addNotice(n, {to: a, kind: 'standard', go: 'me', proposalId: p.id, unitId: p.unitId, title: `${nameOf(s, s.me)} 님이 ${propLabel(s, p)}${josa(propLabel(s, p), '을', '를')} 올렸습니다`, body: p.duties.map(d => d.title).join(', ')});
   return n;
 }
 /** 승인 — 업무·반복업무를 기준표에 넣고, 새 업무는 올린 사람이 맡는다. 맡은 사람 모두에게 알린다. */
@@ -482,9 +484,9 @@ export function approveProposal(s: State, id: string): State {
   if (p.newUnit) n = give(n, p.by, [unitId!]);
   n = {...n, proposals: n.proposals.map(x => (x.id === id ? {...x, state: 'approved' as const, decidedBy: s.me, decidedAt: today(), madeUnitId: p.newUnit ? unitId : undefined} : x))};
   const uname = unitById(n, unitId!)?.name ?? '';
-  if (p.by !== s.me) n = addNotice(n, {to: p.by, kind: 'standard', go: 'me', title: `${propLabel(s, p)}${josa(propLabel(s, p), '이', '가')} 승인됐습니다`, body: p.newUnit ? '내 업무에 들어갔습니다' : '맡은 사람 모두의 할 일에 들어갑니다'});
+  if (p.by !== s.me) n = addNotice(n, {to: p.by, kind: 'standard', go: 'me', proposalId: p.id, unitId, title: `${propLabel(s, p)}${josa(propLabel(s, p), '이', '가')} 승인됐습니다`, body: p.newUnit ? '내 업무에 들어갔습니다' : '맡은 사람 모두의 할 일에 들어갑니다'});
   for (const h of holdersOf(n, unitId!).filter(h => h !== p.by && h !== s.me)) {
-    n = addNotice(n, {to: h, kind: 'standard', go: 'home', title: `${uname} 업무에 반복업무가 더해졌습니다`, body: p.duties.map(d => d.title).join(', ')});
+    n = addNotice(n, {to: h, kind: 'standard', go: 'home', unitId, title: `${uname} 업무에 반복업무가 더해졌습니다`, body: p.duties.map(d => d.title).join(', ')});
   }
   return n;
 }
@@ -492,7 +494,7 @@ export function rejectProposal(s: State, id: string, reason: string): State {
   const p = s.proposals.find(x => x.id === id);
   if (!p || p.state !== 'pending') return s;
   const n = {...s, proposals: s.proposals.map(x => (x.id === id ? {...x, state: 'rejected' as const, decidedBy: s.me, decidedAt: today(), reason} : x))};
-  return addNotice(n, {to: p.by, kind: 'standard', go: 'me', title: `${propLabel(s, p)}${josa(propLabel(s, p), '이', '가')} 반려됐습니다`, body: reason || '사유 없음'});
+  return addNotice(n, {to: p.by, kind: 'standard', go: 'me', proposalId: p.id, unitId: p.unitId, title: `${propLabel(s, p)}${josa(propLabel(s, p), '이', '가')} 반려됐습니다`, body: reason || '사유 없음'});
 }
 
 /** 로그인 목록에 붙일 역할 — 업무 표준 마스터 / ○○ 분류 관리자. */

@@ -78,6 +78,8 @@ export type Notice = {
   title: string; body: string; at: string; read: boolean; key?: string;
   go?: 'home' | 'me';
   dispatchId?: string;
+  /** 무엇에 관한 알림인지 — 알림 판에서 '처리할 것'을 가르고(지금도 기다리는 인수인계·검토), 누르면 그 업무로 간다 */
+  handoverId?: string; proposalId?: string; unitId?: string;
 };
 
 /** 회차 기록 — 완료할 때 저절로 남는다. note 만 선택 입력. */

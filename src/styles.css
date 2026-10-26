@@ -370,14 +370,10 @@ body.revealing .flow > :nth-child(4), body.revealing .who { animation-delay: .48
 button.who { text-align: left; border-radius: 12px; width: 100%; border-top: 0; }
 button.who:hover, button.who.on { background: var(--chip); }
 button.who span { font-size: 13px; }
-.topalarm { display: none; }
 .m-only { display: none !important; }
 @media (max-width: 900px) {
   .d-only { display: none !important; }
   .m-only { display: flex !important; }
-  .topalarm { align-items: center; gap: 6px; min-height: 40px; font-size: 15px; font-weight: 700; color: var(--sub); }
-  .topalarm.on { color: var(--ink); }
-  .topalarm .badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--ink); color: var(--bg); font-style: normal; font-size: 12px; display: grid; place-items: center; }
   .body.calbody, .body.calbody:not(:has(.detail)) { grid-template-columns: minmax(0, 1fr); }
   .cal-h { padding: 16px 0 14px; }
   .cal-h h2 { font-size: 20px; }
@@ -1053,7 +1049,7 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 /* 좁은 PC(1280 미만): 나란히 두면 내용이 너무 좁아지므로 패널은 오른쪽에 겹쳐 뜨고 내용은 그대로 둔다 */
 @media (min-width: 901px) and (max-width: 1279px) {
   .body:not(.calbody):has(> .pw) { grid-template-columns: minmax(0, 840px) 0px; column-gap: 0; }
-  .body:not(.calbody) > .pw { position: fixed; top: 16px; right: 16px; bottom: 16px; width: 380px; z-index: 20; pointer-events: none; }
+  .body:not(.calbody) > .pw { position: fixed; top: 16px; right: 72px; bottom: 16px; width: 380px; z-index: 20; pointer-events: none; }
   .body:not(.calbody) > .pw > .detail { pointer-events: auto; position: static; margin-top: 0; max-height: 100%; box-shadow: 0 16px 48px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.06); }
 }
 
@@ -1070,20 +1066,27 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .gd-toc + .gd-body { margin-top: 24px; }
 
 /* ── 내 업무 · 업무지식 나누기(2026-10-26 사용자 판정: 화면은 분리, 데이터는 통합, 폰 탭 수 유지) ── */
-/* 알림: PC·폰 모두 위쪽 숫자 버튼 */
-.brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.brand-row .brand { padding-right: 0; }
-.topalarm { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; font-size: 15px; font-weight: 700; color: var(--sub); }
-.topalarm:hover { color: var(--ink); background: color-mix(in srgb, var(--bg) 70%, transparent); }
-.topalarm.on { color: var(--ink); background: var(--bg); }
-.topalarm .badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--ink); color: var(--bg); font-style: normal; font-size: 12px; display: grid; place-items: center; }
+/* 알림: 오른쪽 위 종(2026-10-26 사용자 판정: 왼쪽은 이동, 오른쪽은 확인과 처리). PC는 화면 오른쪽 위에 늘 떠 있고,
+   본문·상세 판은 오른쪽 72px를 비워 종과 겹치지 않는다. 폰은 위 머리줄 오른쪽 끝. */
+.bell { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--ink); flex: none; }
+.bell svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.bell .badge { position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--ink); color: var(--bg); font-style: normal; font-size: 11.5px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg); }
+@media (min-width: 901px) {
+  .main { padding-right: 72px; }
+  .bell { position: fixed; top: 16px; right: 16px; z-index: 25; background: var(--bg); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .bell:hover { box-shadow: 0 1px 2px rgba(0,0,0,.06), inset 0 0 0 1px var(--line); }
+  .bell.on { box-shadow: inset 0 0 0 1.5px var(--ink); }
+}
 @media (max-width: 900px) {
   .brand-row { display: contents; }
   .side .newbtn { order: 1; }
-  .side .topalarm { order: 2; padding: 0 4px; }
+  .side .bell { order: 2; margin-right: -8px; }
   .worktabs { display: flex; margin-top: 12px; }
   .worktabs button { flex: 1; }
 }
+.detail.notices .row.notice { width: 100%; }
+.detail.notices .sh-row { display: flex; align-items: center; justify-content: space-between; }
+.detail.notices .sh-row h4 { margin-bottom: 0; }
 
 /* 내 업무: 머리 + 업무마다 접힌 줄 */
 .work-h { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -1107,7 +1110,7 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 @media (min-width: 901px) {
   .body.knowbody, .body.knowbody:not(:has(.detail)) { grid-template-columns: minmax(0, 1080px) 0px; }
   .body.knowbody:has(> .pw) { grid-template-columns: minmax(0, 1080px) 0px; column-gap: 0; }
-  .body.knowbody > .pw { position: fixed; top: 16px; right: 16px; bottom: 16px; width: 380px; z-index: 20; pointer-events: none; }
+  .body.knowbody > .pw { position: fixed; top: 16px; right: 72px; bottom: 16px; width: 380px; z-index: 20; pointer-events: none; }
   .body.knowbody > .pw > .detail { pointer-events: auto; position: static; margin-top: 0; max-height: 100%; box-shadow: 0 16px 48px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.06); }
 }
 .know-top > .card { margin-top: 16px; }
@@ -1138,3 +1141,17 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
   .wu-t { flex-basis: 100%; }
   .wu-acts { margin-left: -4px; }
 }
+
+/* 업무지식 · 좁은 PC(1280 미만): 왼쪽 업무 목록 대신 위쪽 고르기 칸 하나 — 문서 폭을 먼저 확보한다(2026-10-26) */
+.know-pick { display: none; }
+@media (min-width: 901px) and (max-width: 1279px) {
+  .know-grid { grid-template-columns: minmax(0, 1fr); }
+  .know-list { display: none; }
+  .know-pick { display: flex; align-items: center; gap: 10px; margin: 16px 0 0; }
+  .know-pick label { font-size: 14px; font-weight: 700; color: var(--sub); }
+  .know-pick select { min-height: 44px; min-width: 240px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font-size: 15px; font-weight: 600; }
+  .know-pick .textbtn { margin-left: auto; text-decoration: underline; text-underline-offset: 3px; }
+  .know-grid { margin-top: 12px; }
+}
+/* 폰: 본문(.body)은 화면 전환 이름(view-transition-name) 때문에 따로 쌓이므로, 상세 판이 열리면 본문째 머리줄·아래 탭 위로 올린다 */
+@media (max-width: 900px) { .body:has(> .pw > .detail:not(.daypanel)) { position: relative; z-index: 31; } }

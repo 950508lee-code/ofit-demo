@@ -11,7 +11,7 @@ import {Records} from './views/Place';
 
 type Props = {s: State; setS: (s: State) => void; toast: (m: string, undo?: State) => void; onClose: () => void};
 
-function Head({over, title, sub, onClose}: {over?: string; title: string; sub: string; onClose: () => void}) {
+export function Head({over, title, sub, onClose}: {over?: string; title: string; sub: string; onClose: () => void}) {
   return (
     <div className="dh">
       <div>
