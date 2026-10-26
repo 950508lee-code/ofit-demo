@@ -172,3 +172,4 @@ AI 없이 만드는 칸이 먼저 채워지고, AI 칸은 "제안"으로 구분�
 - 제출본은 GitHub `submit/gitlab` 브랜치다. 지난 기록 없이 시작해서 실제 공단 자료가 든 옛 커밋이 따라가지 않는다. **개발 브랜치를 통째로 GitLab에 올리지 않는다.**
 - 고친 것을 다시 올릴 때(PC Git Bash, `ofit-submit` 폴더): GitHub `submit/gitlab`에 같은 변경을 커밋 → `git pull --no-edit origin submit/gitlab` → `git push https://gitlab.aigov.go.kr/ofit/ofit.git submit/gitlab:main`.
 - GitLab은 올릴 때 보안 검사를 돌려 걸리면 거부한다. 첫 시도에서 점검 스크립트의 `http://127.0.0.1` 접속이 Semgrep에 걸려 크롬과 파이프로 주고받게 바꿨다.
+- 시연 주소: https://950508lee-code.github.io/ofit-demo/ (GitHub 공개 저장소 `ofit-demo`, `.github/workflows/pages.yml`이 main에 올라오면 빌드해 띄운다). 공공 GitLab에는 Pages 메뉴가 없어 이렇게 했다. `ofit-demo`에도 제출본(`submit/gitlab`)과 같은 내용만 올린다: `git push https://github.com/950508lee-code/ofit-demo origin/submit/gitlab:main`.
