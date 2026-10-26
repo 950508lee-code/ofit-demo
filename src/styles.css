@@ -968,3 +968,5 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .seg2 { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg); justify-self: start; }
 .seg2 button { min-height: 40px; padding: 0 16px; border-radius: 9px; font-size: 15px; font-weight: 600; color: var(--sub); }
 .seg2 button.on { background: var(--ink); color: var(--bg); }
+/* 시연용 안내 — 공개 주소에서 실제 기관 서비스로 오해하지 않게(2026-10-26 사용자 판정) */
+.demo-note { margin-bottom: 20px; padding: 10px 14px; border-radius: 10px; background: var(--chip); font-size: 14px; color: var(--sub); }

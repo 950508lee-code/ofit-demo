@@ -15,6 +15,7 @@ export function Login({s, setS}: {s: State; setS: (s: State) => void}) {
   if (mode === 'org') return <RegisterOrg s={s} onCancel={() => setMode('home')} onDone={n => { setS(n); setMode('home'); }} />;
   return (
     <div className="flow">
+      <p className="demo-note">시연용 화면입니다. 사람·부서·업무 자료는 모두 지어낸 것입니다.</p>
       <h1 className="logo" data-logo>OFIT</h1>
       <p className="lead">업무를 고르면 반복업무가 저절로 들어옵니다</p>
       {s.people.length > 0 && <p className="choices-label">가입한 사람</p>}
