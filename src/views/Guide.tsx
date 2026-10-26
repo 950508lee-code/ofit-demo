@@ -74,7 +74,7 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
     if (save && ed.current) { setS(saveGuide(s, unitId, cleanGuide(ed.current.innerHTML))); toast('저장했습니다'); }
     dropDraft(dk); setEditing(false); setPick(false);
   };
-  const cmd = (c: 'h' | 'ul' | 'ol') => {
+  const cmd = (c: 'h' | 'b' | 'ul' | 'ol') => {
     ed.current?.focus();
     if (c === 'h') {
       // 지금 줄이 제목이면 문단으로, 아니면 제목으로(브라우저마다 다른 queryCommandValue 대신 화면 구조로 판단)
@@ -82,6 +82,7 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
       const el = n && (n.nodeType === Node.ELEMENT_NODE ? n as Element : n.parentElement);
       document.execCommand('formatBlock', false, el?.closest('h4') ? 'p' : 'h4');
     }
+    if (c === 'b') document.execCommand('bold'); // 핵심 정보(마감·주의)는 작성자가 직접 굵게 표시한다
     if (c === 'ul') document.execCommand('insertUnorderedList');
     if (c === 'ol') document.execCommand('insertOrderedList');
     onInput();
@@ -114,6 +115,7 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
         <>
           <div className="tools" role="toolbar" aria-label="서식">
             <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('h')}>제목</button>
+            <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('b')}>굵게</button>
             <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('ul')}>목록</button>
             <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('ol')}>번호 목록</button>
             {refs.length > 0 && <button onMouseDown={e => { e.preventDefault(); keepSel(); }} onClick={() => setPick(p => !p)}>참고자료 연결</button>}

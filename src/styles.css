@@ -995,11 +995,20 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .gd .gd-h h3 { margin: 0; }
 .gd .gd-h .gd-who { font-size: 13px; color: var(--sub); white-space: nowrap; }
 .gd .gd-h .gd-who .textbtn { min-height: 0; margin-left: 14px; padding: 0; font-size: 14px; color: var(--ink); text-decoration: underline; }
-.gd-body { margin-top: 14px; font-size: 16px; line-height: 1.7; }
-.gd-body h4 { margin: 18px 0 2px; font-size: 16px; font-weight: 700; line-height: 1.5; }
+/* 읽기 화면 = 문서형(2026-10-26 사용자 판정). 카드·색 없이 글자 크기·굵기·줄 간격·여백만으로 세 층을 만든다.
+   ① 업무 개요: 맨 앞 문단(또는 첫 제목 바로 아래 문단)은 조금 크게.  ② 주요 항목: 제목은 본문보다 확실히 크고 굵게,
+   제목 아래는 좁게·묶음 사이는 넓게.  ③ 핵심 정보: 작성자가 굵게 한 말만 더 굵게. 제목 이름을 보고 모양을 바꾸지 않는다. */
+.gd-body { margin-top: 18px; font-size: 16px; line-height: 1.75; color: var(--ink); }
+.gd-body > p:first-child, .gd-body > h4:first-child + p { font-size: 18px; line-height: 1.7; font-weight: 500; letter-spacing: -.01em; }
+.gd-body h4 { margin: 36px 0 8px; font-size: 19px; font-weight: 800; line-height: 1.35; letter-spacing: -.02em; }
 .gd-body h4:first-child { margin-top: 0; }
-.gd-body ul, .gd-body ol { margin: 2px 0 0; padding-left: 22px; }
-.gd-body p + p { margin-top: 6px; }
+.gd-body ul, .gd-body ol { margin: 0; padding-left: 20px; }
+.gd-body li { line-height: 1.6; }
+.gd-body li + li { margin-top: 5px; }
+.gd-body li::marker { color: var(--sub); }
+.gd-body p + p { margin-top: 10px; }
+.gd-body p + ul, .gd-body p + ol, .gd-body ul + p, .gd-body ol + p { margin-top: 8px; }
+.gd-body b, .gd-body strong { font-weight: 800; }
 .gd-body a.rf { color: var(--ink); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 .gd-empty { width: 100%; margin-top: 12px; padding: 18px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: left; font-size: 16px; color: var(--sub); }
 .gd-empty:hover { border-color: var(--sub); color: var(--ink); }
