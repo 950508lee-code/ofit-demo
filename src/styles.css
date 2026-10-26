@@ -1220,19 +1220,17 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .tk-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; min-height: 44px; padding: 0; text-align: left; font-size: 14px; color: var(--ink); }
 .tk-k { flex: none; font-size: 13px; font-weight: 700; color: var(--sub); }
 .tk-k b { color: var(--ink); }
-.tk-win { position: relative; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
-.tk-win.moving { mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 32px), transparent); }
-.tk-run { display: inline-flex; }
-.tk-run.go { animation: tk-flow linear infinite; }
-.tk-main:hover .tk-run, .tk-main:focus-visible .tk-run { animation-play-state: paused; }
-@keyframes tk-flow { to { transform: translateX(-50%); } }
-.tk-set { display: inline-flex; }
-.tk-it { display: inline-flex; align-items: baseline; gap: 7px; padding: 0 20px; }
-.tk-win.moving .tk-it:first-child { padding-left: 20px; }
-.tk-win:not(.moving) .tk-it:first-child { padding-left: 0; }
-.tk-it small { font-size: 12.5px; color: var(--sub); }
-.tk-it b { font-weight: 500; } .tk-it b.on { font-weight: 700; }
-.tk-it > span { font-size: 13px; color: var(--sub); }
+.tk-win { position: relative; flex: 1; min-width: 0; height: 22px; overflow: hidden; white-space: nowrap; }
+.tk-it { position: absolute; inset: 0; display: flex; align-items: baseline; gap: 8px; overflow: hidden; text-overflow: ellipsis; }
+.tk-it.in { animation: tk-in 300ms cubic-bezier(.2,0,0,1) both; }
+.tk-it.out { animation: tk-out 300ms cubic-bezier(.2,0,0,1) both; }
+@keyframes tk-in { from { transform: translateY(100%); opacity: 0; } }
+@keyframes tk-out { to { transform: translateY(-100%); opacity: 0; } }
+.tk-it small { flex: none; font-size: 12.5px; color: var(--sub); }
+.tk-it b { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; } .tk-it b.on { font-weight: 700; }
+.tk-it > span { flex: none; font-size: 13px; color: var(--sub); }
+.tk-n { flex: none; font-size: 12.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .tk-it.in { animation: fade-in 200ms ease-out both; } .tk-it.out { display: none; } }
 .tk-stop { flex: none; min-height: 44px; padding: 0 2px; font-size: 13px; color: var(--sub); text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 900px) { .hello { margin-top: 8px; } .hello h1 { font-size: 22px; } .tk { margin-bottom: 12px; } }
 

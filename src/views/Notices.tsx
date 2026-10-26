@@ -1,4 +1,4 @@
-import {useEffect, useLayoutEffect, useRef, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {canApprove, dispatchById, doneForMe, myNotices, readAll, readNotice, recentChanges, unitById, type Change, type State} from '../store';
 import type {Notice} from '../model';
 import {Head} from '../Cards';
@@ -82,10 +82,10 @@ export function NoticePanel({s, setS, onClose, onGo, onUnit}: {s: State; setS: (
 }
 
 /**
- * 오늘 화면 맨 위 인사말 아래 알림 한 줄(2026-10-26 사용자: "알림은 한 줄 전광판으로, 누르면 알림 창").
- * 처리할 것 → 안 읽은 알림 → 내 업무에서 바뀐 것 순서로 한 줄에 이어 붙이고, 칸보다 길면 오른쪽에서 왼쪽으로 천천히 흐른다.
- * 마우스를 올리거나 칸에 들어가면 멈추고, '멈춤'으로 세울 수 있다(5초 넘게 저절로 움직이는 것은 멈출 수 있어야 한다).
- * 움직임 줄이기면 흐르지 않는다. 줄을 누르면 오른쪽 알림 판이 열린다. 보일 것이 없으면 줄을 두지 않는다.
+ * 오늘 화면 맨 위 인사말 아래 알림 한 줄(2026-10-26 사용자: "알림은 한 줄 전광판으로, 위에서 아래로 바뀌는 속보식, 누르면 알림 창").
+ * 처리할 것 → 안 읽은 알림 → 내 업무에서 바뀐 것 순서로 한 번에 하나씩, 3.5초마다 다음 것이 아래에서 올라온다(300ms).
+ * 마우스를 올리거나 칸에 들어가면 멈추고, '멈춤'으로 세울 수 있다(저절로 바뀌는 것은 멈출 수 있어야 한다).
+ * 움직임 줄이기면 미끄러지지 않고 투명도로만 바뀐다. 줄을 누르면 오른쪽 알림 판이 열린다. 보일 것이 없으면 줄을 두지 않는다.
  */
 type Tick = {key: string; k: string; t: string; sub: string; strong: boolean};
 export function NoticeTicker({s, onOpen}: {s: State; onOpen: () => void}) {
@@ -96,37 +96,29 @@ export function NoticeTicker({s, onOpen}: {s: State; onOpen: () => void}) {
     ...list.filter(n => !n.read && !waiting(s, n)).map(n => ({key: n.id, k: KIND[n.kind], t: n.title, sub: ago(n.at), strong: true})),
     ...recentChanges(s).map((c: Change) => ({key: c.key, k: c.kind, t: c.title, sub: monthDay(c.at), strong: false})),
   ].slice(0, 8);
-  const win = useRef<HTMLDivElement>(null), run = useRef<HTMLDivElement>(null);
-  const [over, setOver] = useState(0); // 칸을 넘친 길이(px). 0이면 흐르지 않는다
+  const [[i, prev], setI] = useState<[number, number]>([0, -1]); // 지금 것과 막 올라가 사라지는 것
   const [stop, setStop] = useState(false);
-  const sig = items.map(i => i.key + i.sub).join('|');
-  useLayoutEffect(() => {
-    const w = win.current, r = run.current;
-    if (!w || !r) return;
-    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const one = (r.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
-    setOver(!calm && one > w.clientWidth ? one : 0);
-  }, [sig]);
-  useEffect(() => { if (!over) setStop(false); }, [over]);
-  if (!items.length) return null;
-  const line = (dup?: boolean) => (
-    <span className="tk-set" aria-hidden={dup || undefined}>
-      {items.map(i => (
-        <span key={i.key} className="tk-it"><small>{i.k}</small><b className={i.strong ? 'on' : ''}>{i.t}</b><span>{i.sub}</span></span>
-      ))}
-    </span>
-  );
+  const [hold, setHold] = useState(false); // 마우스를 올리거나 칸에 들어가 있는 동안
+  const n = items.length;
+  useEffect(() => {
+    if (n < 2 || stop || hold) return;
+    const t = setInterval(() => setI(([x]) => [(x + 1) % n, x]), 3500);
+    return () => clearInterval(t);
+  }, [n, stop, hold]);
+  if (!n) return null;
+  const cur = items[i % n];
   return (
-    <div className="tk">
-      <button className="tk-main" onClick={onOpen} aria-label={`알림 열기. ${items.map(i => `${i.k} ${i.t}`).join(', ')}`}>
+    <div className="tk" onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)}>
+      <button className="tk-main" onClick={onOpen} onFocus={() => setHold(true)} onBlur={() => setHold(false)}
+        aria-label={`알림 열기. ${items.map(x => `${x.k} ${x.t}`).join(', ')}`}>
         <span className="tk-k">알림{act.length > 0 && <b> 처리할 것 {act.length}</b>}</span>
-        <span ref={win} className={`tk-win${over ? ' moving' : ''}`}>
-          <span ref={run} className={`tk-run${over && !stop ? ' go' : ''}`} style={over ? {animationDuration: `${Math.round(over / 40)}s`} : undefined}>
-            {line()}{over > 0 && line(true)}
-          </span>
+        <span className="tk-win" aria-hidden="true">
+          {prev >= 0 && items[prev % n] && <span key={`o${items[prev % n].key}${i}`} className="tk-it out"><small>{items[prev % n].k}</small><b className={items[prev % n].strong ? 'on' : ''}>{items[prev % n].t}</b><span>{items[prev % n].sub}</span></span>}
+          <span key={cur.key + i} className={`tk-it${prev >= 0 ? ' in' : ''}`}><small>{cur.k}</small><b className={cur.strong ? 'on' : ''}>{cur.t}</b><span>{cur.sub}</span></span>
         </span>
+        {n > 1 && <span className="tk-n" aria-hidden="true">{(i % n) + 1} / {n}</span>}
       </button>
-      {over > 0 && <button className="textbtn tk-stop" onClick={() => setStop(x => !x)} aria-pressed={stop}>{stop ? '흐르기' : '멈춤'}</button>}
+      {n > 1 && <button className="textbtn tk-stop" onClick={() => setStop(x => !x)} aria-pressed={stop}>{stop ? '넘기기' : '멈춤'}</button>}
     </div>
   );
 }
