@@ -35,8 +35,12 @@ const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, '0')}:${Str
 const md = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
 
 /** 읽기용: 참고자료 연결은 그 자료로 가는 글자로 바꾼다(링크는 새 창, 파일은 있는 곳을 말풍선으로). */
+// 목차는 제목 수가 아니라 글의 실제 길이로 정한다: 제목이 둘 이상이고, 그려진 본문 높이가 TOC_H를 넘을 때만.
+const TOC_H = 720;
+
 function GuideBody({html, refs}: {html: string; refs: Ref[]}) {
   const box = useRef<HTMLDivElement>(null);
+  const [toc, setToc] = useState<string[]>([]);
   useEffect(() => {
     box.current?.querySelectorAll<HTMLAnchorElement>('a.rf').forEach(a => {
       const r = refs.find(x => x.id === a.dataset.ref);
@@ -44,7 +48,31 @@ function GuideBody({html, refs}: {html: string; refs: Ref[]}) {
       if (r.kind === 'link') { a.href = r.where; a.target = '_blank'; a.rel = 'noreferrer'; } else a.title = r.where;
     });
   }, [html, refs]);
-  return <div ref={box} data-spot="guide" className="gd-body" dangerouslySetInnerHTML={{__html: cleanGuide(html)}} />;
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      const heads = [...el.querySelectorAll('h4')].map(h => h.textContent?.trim() ?? '');
+      setToc(heads.length >= 2 && el.offsetHeight > TOC_H ? heads : []);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [html]);
+  const jump = (i: number) => {
+    const h = box.current?.querySelectorAll('h4')[i];
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    h?.scrollIntoView({behavior: calm ? 'auto' : 'smooth', block: 'start'});
+  };
+  return <>
+    {toc.length > 0 && (
+      <nav className="gd-toc" aria-label="업무 안내 목차">
+        {toc.map((t, i) => <button key={i} onClick={() => jump(i)}><span>{i + 1}</span>{t}</button>)}
+      </nav>
+    )}
+    <div ref={box} data-spot="guide" className="gd-body" dangerouslySetInnerHTML={{__html: cleanGuide(html)}} />
+  </>;
 }
 
 export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) => void; toast: (m: string) => void; unitId: string}) {

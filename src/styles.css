@@ -1039,3 +1039,32 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 /* ── 찾기 결과로 온 자리: 그 줄을 잠깐 옅게 칠하고, 찾은 말은 진하게 칠한다 ── */
 .spot-on { background: color-mix(in srgb, var(--ink) 6%, var(--bg)); border-radius: 8px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--ink) 6%, var(--bg)); transition: background 200ms, box-shadow 200ms; }
 ::highlight(ofit-hit) { background-color: color-mix(in srgb, var(--ink) 18%, var(--bg)); color: var(--ink); }
+
+/* ── 정렬(2026-10-26): 내용 칸은 남은 화면의 가운데에 둔다. 상세 패널 자리를 미리 비워 두지 않는다.
+   패널이 열리면 [내용 + 패널]이 한 덩어리로 가운데에 서고, 내용 폭만 220ms 동안 부드럽게 줄어든다(튕김 없음).
+   달력은 고른 날 목록이 늘 있어 두 칸 그대로 가운데. ── */
+@media (min-width: 901px) {
+  .body, .body:not(:has(.detail)) { grid-template-columns: minmax(0, 840px) 0px; column-gap: 0; justify-content: center; max-width: none; transition: grid-template-columns 220ms cubic-bezier(.2,0,0,1), column-gap 220ms cubic-bezier(.2,0,0,1); }
+  .body:has(> .pw) { grid-template-columns: minmax(0, 840px) 380px; column-gap: 24px; }
+  .body > .pw > .detail { width: 380px; box-sizing: border-box; }
+  .body.calbody, .body.calbody:not(:has(.detail)) { grid-template-columns: minmax(0, 1fr) 380px; column-gap: 40px; max-width: 1280px; margin: 0 auto; transition: none; }
+}
+@media (min-width: 901px) and (prefers-reduced-motion: reduce) { .body { transition: none; } }
+/* 좁은 PC(1280 미만): 나란히 두면 내용이 너무 좁아지므로 패널은 오른쪽에 겹쳐 뜨고 내용은 그대로 둔다 */
+@media (min-width: 901px) and (max-width: 1279px) {
+  .body:not(.calbody):has(> .pw) { grid-template-columns: minmax(0, 840px) 0px; column-gap: 0; }
+  .body:not(.calbody) > .pw { position: fixed; top: 16px; right: 16px; bottom: 16px; width: 380px; z-index: 20; pointer-events: none; }
+  .body:not(.calbody) > .pw > .detail { pointer-events: auto; position: static; margin-top: 0; max-height: 100%; box-shadow: 0 16px 48px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.06); }
+}
+
+/* ── 업무 안내 제목 구분(2026-10-26, 비교 목업 3번): 제목 앞 회색 번호 + 제목 아래 가는 줄.
+   긴 글에서만 맨 위에 목차(4번). 목차를 보일지는 제목 수가 아니라 그려진 본문 높이로 정한다(Guide.tsx TOC_H). ── */
+.gd-body { counter-reset: sec; }
+.gd-body h4 { counter-increment: sec; margin: 40px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); scroll-margin-top: 24px; }
+.gd-body h4:first-child { margin-top: 0; }
+.gd-body h4::before { content: counter(sec); display: inline-block; min-width: 22px; margin-right: 6px; font-weight: 600; color: var(--sub); }
+.gd-toc { display: flex; flex-wrap: wrap; gap: 0 18px; margin-top: 16px; padding: 4px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.gd-toc button { min-height: 44px; font-size: 14px; font-weight: 600; color: var(--ink); text-align: left; }
+.gd-toc button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.gd-toc span { margin-right: 6px; color: var(--sub); }
+.gd-toc + .gd-body { margin-top: 24px; }
