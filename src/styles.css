@@ -1155,3 +1155,41 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 }
 /* 폰: 본문(.body)은 화면 전환 이름(view-transition-name) 때문에 따로 쌓이므로, 상세 판이 열리면 본문째 머리줄·아래 탭 위로 올린다 */
 @media (max-width: 900px) { .body:has(> .pw > .detail:not(.daypanel)) { position: relative; z-index: 31; } }
+
+/* ── 처리 순서: 공통 처리 순서 + 우리 부서 운영 방식(2026-10-26 사용자 판정). 운영 방식은 단계 아래 들여 쓴 한 줄,
+   업무 안내·처리 순서·다른 부서 사례에서 같은 말('○○ 운영 방식')과 같은 모양. 색 없이 왼쪽 가는 선과 회색 이름표. ── */
+.stepsb .sb-h { display: flex; align-items: center; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.sb-src { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sub); }
+.sb-src .textbtn, .sb-acts .textbtn { font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.sb-acts { display: flex; gap: 4px; }
+.howto .sb-list li { flex-wrap: wrap; }
+.way { flex-basis: 100%; display: flex; flex-direction: column; gap: 1px; margin: 4px 0 2px 28px; padding: 4px 0 4px 12px; border-left: 2px solid var(--line); font-size: 14.5px; line-height: 1.5; color: var(--ink); }
+.checks .way { margin-left: 32px; }
+.stepsb > .way, .stepsb > div > .way { margin-left: 0; margin-top: 10px; }
+.way .wk { font-size: 12.5px; font-weight: 700; color: var(--sub); }
+.way.stale { border-left-style: dashed; }
+.way .wx { font-size: 13px; font-weight: 700; }
+.sb-hist { list-style: none; margin: 4px 0 10px; padding: 10px 12px; display: grid; gap: 10px; border-radius: 10px; background: var(--chip); font-size: 14px; }
+.sb-hist li { display: flex; flex-direction: column; gap: 2px; }
+.wayed .wr { display: grid; gap: 4px; margin-top: 12px; }
+.wayed .wc { font-size: 14px; color: var(--sub); }
+.wayed .wc .n { display: inline-block; min-width: 18px; margin-right: 6px; font-weight: 600; }
+.wayed input, .wayed textarea { width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 15px; font-family: inherit; }
+/* 업무 안내: 우리 부서 운영 방식 · 공개 범위(문서 하나에 하나, 처음 값 우리 부서만) */
+.gd-kind { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.seg2.scope button { min-height: 40px; padding: 0 12px; font-size: 14px; }
+.scope-t { font-size: 13px; color: var(--sub); }
+/* 다른 부서 사례: 기본은 접힘, 출처와 '공통 기준이 아님'을 늘 보인다 */
+.others .oc { margin-top: 10px; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: 12px; }
+.oc-depts { margin-top: 8px; }
+.oc-h { display: flex; align-items: baseline; gap: 10px; }
+.oc-h b { font-size: 16px; }
+.oc-h span, .oc-note { font-size: 13.5px; color: var(--sub); }
+.oc-note { margin-top: 4px; }
+.oc-sub { margin-top: 16px; font-size: 13px; font-weight: 700; color: var(--sub); }
+.oc .gd-body { margin-top: 8px; }
+.oc-way h4 { margin: 10px 0 2px; font-size: 15px; }
+.oc-way .way { margin-left: 0; }
+.seg2.scope button { white-space: nowrap; }
+.stepsb.sb-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.stepsb.sb-empty .plain { margin: 0; color: var(--sub); font-size: 15px; }

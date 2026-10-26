@@ -21,7 +21,14 @@ export type Proposal = {
   state: 'pending' | 'approved' | 'rejected';
   decidedBy?: string; decidedAt?: string; reason?: string; madeUnitId?: string;
 };
-export type Step = {text: string; form?: string; warn?: boolean}; // warn: 주의 줄 — 체크하지 않고, 관련 단계 바로 아래에 둔다
+export type Step = {id?: string; text: string; form?: string; warn?: boolean}; // warn: 주의 줄 — 체크하지 않고, 관련 단계 바로 아래에 둔다
+/**
+ * 부서 운영 방식 — 공통 처리 순서는 그대로 두고, 그 부서가 다르게 하는 단계 아래에만 붙는 한 줄(2026-10-26 사용자 판정).
+ * base: 쓸 때의 공통 단계 글. 공통이 바뀌면 지우지 않고 '확인 필요'로만 보인다. 공통과 부서 중 무엇을 따를지는 시스템이 정하지 않는다.
+ */
+export type DeptWay = {text: string; base: string; by: string; at: string};
+/** 공통 처리 순서가 바뀐 기록(관리자만 고친다). 기록이 없으면 '기존 등록 자료'. */
+export type StepChange = {by: string; at: string; before: Step[]; after: Step[]};
 
 /** 단위업무 — 사람이 맡고 넘기는 단위. 업무분장표의 한 줄. series 는 직렬(대분류). */
 export type Unit = {id: string; org: OrgId; series: string; name: string};

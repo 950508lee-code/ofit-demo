@@ -1,5 +1,5 @@
 // 상태와 동작. 화면은 여기 함수만 부른다 — 나중에 서버(Supabase)나 AI 를 붙일 때 이 파일만 바꾼다.
-import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Dept, type Dispatch, type Proposal, type Series, type Ref, type Guide} from './model';
+import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Dept, type Dispatch, type Proposal, type Series, type Ref, type Guide, type DeptWay, type StepChange} from './model';
 import type {Parsed} from './parse';
 import {addDays, occurrences, ruleLabel, type Rule} from './schedule';
 
@@ -26,6 +26,9 @@ export type State = {
   refs: Ref[]; // 참고자료(조직 안에서 같이 쓴다)
   unitRefs: Record<string, string[]>; // 단위업무 id → 붙인 참고자료 id(순서대로)
   guides: Record<string, Guide>; // '부서:단위업무' → 업무 안내(부서마다 따로)
+  deptWays: Record<string, Record<string, DeptWay>>; // '부서:반복업무' → 단계 id('_end' = 공통 순서 끝에 더 하는 일) → 부서 운영 방식
+  stepHistory: Record<string, StepChange[]>; // 반복업무 id → 공통 처리 순서가 바뀐 기록
+  knowScope: Record<string, 'org'>; // '부서:단위업무' → 조직 전체 공개(없으면 우리 부서만, 2026-10-26 사용자 판정)
 };
 
 export const occKey = (id: string, date: string) => `${id}@${date}`;
@@ -74,9 +77,12 @@ export const initialState = (): State => ({
   refs: [],
   unitRefs: {},
   guides: {},
+  deptWays: {},
+  stepHistory: {},
+  knowScope: {},
 });
 
-const KEY = 'ofit-demo-v20';
+const KEY = 'ofit-demo-v21';
 export function loadState(): State {
   try {
     const raw = localStorage.getItem(KEY);
@@ -315,8 +321,80 @@ export const saveGuide = (s: State, unitId: string, html: string): State => {
   return {...s, guides: html.trim() ? {...rest, [k]: {html, by: s.me, at: new Date().toISOString()}} : rest};
 };
 
-export const editSteps = (s: State, dutyId: string, steps: Step[]): State =>
-  ({...s, stepEdits: {...s.stepEdits, [dutyId]: steps}});
+/* ── 처리 순서: 공통 기준은 관리자만, 현장은 부서 운영 방식으로(2026-10-26 사용자 판정, docs/KNOWLEDGE.md 3-2) ── */
+/** 단계의 오래가는 id. 처음 등록된 순서는 순번으로 짓는다. */
+export const stepIdOf = (d: Duty, st: Step, i: number) => st.id ?? `${d.id}:${i}`;
+const seriesOfDuty = (s: State, d: Duty) => d.unitIds.map(id => unitById(s, id)?.series).filter((x): x is string => !!x);
+/** 공통 처리 순서를 고칠 수 있는가 — 그 업무 분류의 관리자(분류 관리자·총괄 관리자)만. */
+export const canEditCommon = (s: State, d: Duty) => seriesOfDuty(s, d).some(x => canApprove(s, x));
+/** 우리 부서 운영 방식을 적을 수 있는가 — 그 반복업무가 든 업무를 맡은 사람. */
+export const canEditWay = (s: State, d: Duty) => !!meOf(s)?.deptId && d.unitIds.some(id => holdsOf(s, s.me).includes(id));
+/** 공통 처리 순서 고치기(관리자). 바뀌지 않은 단계는 id를 이어받아 부서 운영 방식이 그대로 붙어 있게 하고, 변경 이력을 남긴다. */
+export function editCommonSteps(s: State, dutyId: string, next: Step[]): State {
+  const d = dutyById(s, dutyId);
+  if (!d || !canEditCommon(s, d)) return s;
+  const before = stepsOf(s, d).map((st, i) => ({...st, id: stepIdOf(d, st, i)}));
+  const used = new Set<string>();
+  const after = next.map((st, i) => {
+    const same = before.find(b => b.text === st.text && !!b.warn === !!st.warn && !used.has(b.id!));
+    const at = before[i] && !used.has(before[i].id!) && !!before[i].warn === !!st.warn && !next.some(x => x.text === before[i].text) ? before[i] : undefined;
+    const id = same?.id ?? at?.id ?? uid();
+    used.add(id);
+    return {...st, id};
+  });
+  if (JSON.stringify(before.map(x => [x.text, !!x.warn, x.form ?? ''])) === JSON.stringify(after.map(x => [x.text, !!x.warn, x.form ?? '']))) return s;
+  const ch: StepChange = {by: s.me, at: new Date().toISOString(), before, after};
+  return {...s, stepEdits: {...s.stepEdits, [dutyId]: after}, stepHistory: {...s.stepHistory, [dutyId]: [...(s.stepHistory[dutyId] ?? []), ch]}};
+}
+const wayKey = (deptId: string, dutyId: string) => `${deptId}:${dutyId}`;
+export const waysOf = (s: State, deptId: string | undefined, dutyId: string) => (deptId ? s.deptWays[wayKey(deptId, dutyId)] : undefined) ?? {};
+/** 우리 부서 운영 방식 저장(단계 id → 글, 빈 글은 지움). 글이 그대로인 단계는 쓴 사람·날짜도 그대로 둔다. */
+export function saveDeptWays(s: State, dutyId: string, texts: Record<string, string>): State {
+  const d = dutyById(s, dutyId), dep = meOf(s)?.deptId;
+  if (!d || !dep || !canEditWay(s, d)) return s;
+  const old = waysOf(s, dep, dutyId);
+  const common = stepsOf(s, d).map((st, i) => ({id: stepIdOf(d, st, i), text: st.text}));
+  const now = new Date().toISOString();
+  const next: Record<string, DeptWay> = {};
+  for (const [k, t] of Object.entries(texts)) {
+    const text = t.trim();
+    if (!text) continue;
+    const base = k === '_end' ? '' : common.find(c => c.id === k)?.text ?? old[k]?.base ?? '';
+    next[k] = old[k] && old[k].text === text ? old[k] : {text, base, by: s.me, at: now};
+  }
+  const {[wayKey(dep, dutyId)]: _x, ...rest} = s.deptWays;
+  return {...s, deptWays: Object.keys(next).length ? {...rest, [wayKey(dep, dutyId)]: next} : rest};
+}
+/** 부서 운영 방식이 쓸 때와 공통 단계가 달라졌는가(단계가 바뀌었거나 없어짐). 지우지 않고 '확인 필요'로만 보인다. */
+export const wayStale = (s: State, d: Duty, stepId: string, w: DeptWay) => {
+  if (stepId === '_end') return false;
+  const i = stepsOf(s, d).findIndex((st, j) => stepIdOf(d, st, j) === stepId);
+  return i < 0 || stepsOf(s, d)[i].text !== w.base;
+};
+
+/* ── 업무지식 공개 범위: 업무 안내·부서 운영 방식을 부서·업무마다 한 번에(처음 값 '우리 부서만') ── */
+export const scopeOf = (s: State, deptId: string | undefined, unitId: string): 'org' | 'dept' =>
+  deptId && s.knowScope[`${deptId}:${unitId}`] === 'org' ? 'org' : 'dept';
+export function setScope(s: State, unitId: string, scope: 'org' | 'dept'): State {
+  const dep = meOf(s)?.deptId;
+  if (!dep || !holdsOf(s, s.me).includes(unitId)) return s;
+  const {[`${dep}:${unitId}`]: _x, ...rest} = s.knowScope;
+  return {...s, knowScope: scope === 'org' ? {...rest, [`${dep}:${unitId}`]: 'org'} : rest};
+}
+/** 다른 부서 사례 — 조직 전체에 공개한 부서의 업무 안내와 운영 방식(읽기만). 우리 부서는 빼고, 쓴 것이 있는 부서만. */
+export function otherCases(s: State, unitId: string) {
+  const mine = meOf(s)?.deptId;
+  const duties = dutiesOfUnit(s, unitId);
+  const depts = new Set<string>();
+  for (const k of Object.keys(s.guides)) { const [dep, u] = k.split(':'); if (u === unitId) depts.add(dep); }
+  for (const k of Object.keys(s.deptWays)) { const [dep, du] = k.split(':'); if (duties.some(d => d.id === du)) depts.add(dep); }
+  return [...depts].filter(dep => dep !== mine && scopeOf(s, dep, unitId) === 'org').map(dep => {
+    const guide = s.guides[guideKey(dep, unitId)];
+    const ways = duties.map(d => ({duty: d, ways: waysOf(s, dep, d.id)})).filter(x => Object.keys(x.ways).length);
+    const at = [guide?.at, ...ways.flatMap(x => Object.values(x.ways).map(w => w.at))].filter((x): x is string => !!x).sort().pop() ?? '';
+    return {deptId: dep, guide, ways, at};
+  }).sort((a, b) => b.at.localeCompare(a.at));
+}
 
 /* ── 빠른 입력 ── */
 export const addTask = (s: State, p: Parsed): State => ({

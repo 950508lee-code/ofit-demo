@@ -1,13 +1,14 @@
 import {useState} from 'react';
-import {type Duty, type Step, type Task, type Unit} from './model';
+import {type Duty, type Task, type Unit} from './model';
 import {cycleOf, dateLabel, ruleLabel, shortDate} from './schedule';
 import {
-  cancelHandover, complete, editSteps, lastNote, occKey, pendingOf, removeTask, setProgress,
+  cancelHandover, complete, lastNote, occKey, pendingOf, removeTask, setProgress,
   nameOf, stepsOf, toggleTask, uncomplete, type State, sameDeptIds, deptName, meOf
 } from './store';
 import {dutiesOf} from './ui';
 import {usePlaceNav} from './views/placeNav';
 import {Records} from './views/Place';
+import {StepsBlock} from './views/Steps';
 
 type Props = {s: State; setS: (s: State) => void; toast: (m: string, undo?: State) => void; onClose: () => void};
 
@@ -34,7 +35,6 @@ export function DutyCard({s, setS, toast, onClose, duty, date}: Props & {duty: D
   const hand = duty.unitIds.map(id => lastNote(s, id)).find(Boolean);
   const units = s.units.filter(u => duty.unitIds.includes(u.id)).map(u => u.name).join(' · ');
   const [note, setNote] = useState('');
-  const [editing, setEditing] = useState(false);
   const goPlace = usePlaceNav();
 
   return (
@@ -43,30 +43,9 @@ export function DutyCard({s, setS, toast, onClose, duty, date}: Props & {duty: D
       <p className="lockline">이름·주기는 <button className="textbtn" onClick={() => goPlace({kind: 'unit', id: duty.unitIds[0]})}>{units} 업무 표준</button>에서 바꿉니다</p>
 
       <section>
-        <div className="sh">
-          <h4>어떻게</h4>
-          {!editing && <button className="textbtn" onClick={() => setEditing(true)}>{steps.length ? '순서 고치기' : '순서 남기기'}</button>}
-        </div>
-        {editing ? (
-          <StepsEditor steps={steps} onCancel={() => setEditing(false)}
-            onSave={st => { setS(editSteps(s, duty.id, st)); setEditing(false); toast('저장했습니다. 다음 담당자도 이 순서를 봅니다'); }} />
-        ) : steps.length === 0 ? (
-          <p className="plain">적힌 순서가 없습니다</p>
-        ) : (
-          <ul className="checks">
-            {steps.map((st, i) => st.warn ? (
-              <li key={i} className="warn"><span className="wl">주의</span><span>{st.text}</span></li>
-            ) : (
-              <li key={i}>
-                <label>
-                  <input type="checkbox" checked={checks[i] ?? false} disabled={!!rec}
-                    onChange={() => setS(setProgress(s, duty.id, date, steps.map((_, j) => (j === i ? !checks[j] : !!checks[j]))))} />
-                  <span><span className="tt">{st.text}</span>{st.form && <small>서식 · {st.form}</small>}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="sh"><h4>어떻게</h4></div>
+        <StepsBlock s={s} setS={setS} toast={toast} duty={duty}
+          check={{checks, done: !!rec, onToggle: i => setS(setProgress(s, duty.id, date, steps.map((_, j) => (j === i ? !checks[j] : !!checks[j]))))}} />
         {duty.basis && <p className="basis">근거 · {duty.basis}</p>}
       </section>
 
@@ -174,37 +153,6 @@ export function UnitPanel({s, setS, toast, onClose, unit, onGive}: Props & {unit
         ) : <button className="ghost wide" onClick={onGive}>인수인계 하기</button>}
       </div>
     </aside>
-  );
-}
-
-// 처리 순서 편집. 작성 기준은 입력칸 밖에 늘 보인다(칸 안 안내는 입력하면 사라져서 쓰지 않는다, docs/WRITING.md).
-// 주의는 관련 단계 바로 아래에 끼워 넣는다. 단계 수와 주의 개수는 제한하지 않는다.
-function StepsEditor({steps, onSave, onCancel}: {steps: Step[]; onSave: (s: Step[]) => void; onCancel: () => void}) {
-  const [list, setList] = useState<Step[]>(steps.length ? steps : [{text: ''}]);
-  const set = (i: number, text: string) => setList(l => l.map((x, j) => (j === i ? {...x, text} : x)));
-  const warnAfter = (i: number) => setList(l => [...l.slice(0, i + 1), {text: '', warn: true}, ...l.slice(i + 1)]);
-  let n = 0;
-  return (
-    <div className="editor">
-      <p className="eh">한 단계에 한 가지 작업을 적으세요. 사용하는 시스템과 수행할 행동을 구체적으로 적으면 좋습니다.</p>
-      {list.some(x => x.warn) && <p className="eh">주의: 실수하기 쉬운 상황이나 예외사항을 적으세요.</p>}
-      {list.map((st, i) => {
-        const no = st.warn ? 0 : ++n;
-        return (
-          <div key={i} className={`er${st.warn ? ' w' : ''}`}>
-            <span className="n">{st.warn ? '주의' : no}</span>
-            <input value={st.text} onChange={e => set(i, e.target.value)} aria-label={st.warn ? '주의' : `${no}번째 순서`} />
-            {!st.warn && <button className="textbtn" onClick={() => warnAfter(i)}>주의 넣기</button>}
-            <button className="textbtn" onClick={() => setList(l => l.filter((_, j) => j !== i))}>빼기</button>
-          </div>
-        );
-      })}
-      <button className="textbtn add" onClick={() => setList(l => [...l, {text: ''}])}>순서 더하기</button>
-      <div className="er-act">
-        <button className="ghost" onClick={onCancel}>취소</button>
-        <button className="ghost strong" onClick={() => onSave(list.filter(x => x.text.trim()))}>저장</button>
-      </div>
-    </div>
   );
 }
 

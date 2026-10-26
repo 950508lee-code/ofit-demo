@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {canEditGuide, deptName, guideOf, meOf, nameOf, refsOfUnit, saveGuide, type State} from '../store';
+import {canEditGuide, deptName, guideOf, meOf, nameOf, refsOfUnit, saveGuide, scopeOf, setScope, type State} from '../store';
 import type {Ref} from '../model';
 
 /**
@@ -38,7 +38,7 @@ const md = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 
 // 목차는 제목 수가 아니라 글의 실제 길이로 정한다: 제목이 둘 이상이고, 그려진 본문 높이가 TOC_H를 넘을 때만.
 const TOC_H = 720;
 
-function GuideBody({html, refs}: {html: string; refs: Ref[]}) {
+export function GuideBody({html, refs, spot = true}: {html: string; refs: Ref[]; spot?: boolean}) {
   const box = useRef<HTMLDivElement>(null);
   const [toc, setToc] = useState<string[]>([]);
   useEffect(() => {
@@ -71,12 +71,13 @@ function GuideBody({html, refs}: {html: string; refs: Ref[]}) {
         {toc.map((t, i) => <button key={i} onClick={() => jump(i)}><span>{i + 1}</span>{t}</button>)}
       </nav>
     )}
-    <div ref={box} data-spot="guide" className="gd-body" dangerouslySetInnerHTML={{__html: cleanGuide(html)}} />
+    <div ref={box} data-spot={spot ? 'guide' : undefined} className="gd-body" dangerouslySetInnerHTML={{__html: cleanGuide(html)}} />
   </>;
 }
 
 export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) => void; toast: (m: string) => void; unitId: string}) {
   const g = guideOf(s, unitId), mine = canEditGuide(s, unitId), refs = refsOfUnit(s, unitId);
+  const scope = scopeOf(s, meOf(s)?.deptId, unitId);
   const dk = `${s.people.find(p => p.id === s.me)?.deptId}:${unitId}`;
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState('');
@@ -138,7 +139,20 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
         <h3 className="dept">업무 안내</h3>
         {!editing && g && <span className="gd-who">{md(g.at)} {nameOf(s, g.by)} 고침{mine && <button className="textbtn" onClick={start}>고치기</button>}</span>}
       </div>
-      <p className="kind">업무 전체에 관한 것, {deptName(s, meOf(s)?.deptId)}에서 쌓은 것</p>
+      <div className="gd-kind">
+        <p className="kind">{deptName(s, meOf(s)?.deptId)} 운영 방식 · 업무 전체에 관한 것</p>
+        {/* 공개 범위: 업무 안내와 처리 순서의 우리 부서 방식을 한 번에. 처음 값은 우리 부서만(2026-10-26 사용자 판정) */}
+        {mine ? (
+          <span className="seg2 scope" role="radiogroup" aria-label="공개 범위">
+            {(['dept', 'org'] as const).map(v => (
+              <button key={v} role="radio" aria-checked={scope === v} className={scope === v ? 'on' : ''}
+                onClick={() => { if (scope !== v) { setS(setScope(s, unitId, v)); toast(v === 'org' ? '조직 전체에 공개했습니다. 다른 부서는 읽기만 합니다' : '우리 부서만 봅니다'); } }}>
+                {v === 'dept' ? '우리 부서만' : '조직 전체'}
+              </button>
+            ))}
+          </span>
+        ) : <span className="scope-t">{scope === 'org' ? '조직 전체 공개' : '우리 부서만 공개'}</span>}
+      </div>
       {editing ? (
         <>
           <div className="tools" role="toolbar" aria-label="서식">

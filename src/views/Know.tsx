@@ -1,8 +1,8 @@
 import {useEffect, useRef, useState, type CSSProperties} from 'react';
-import {deptName, dutiesOfUnit, holdsOf, meOf, nameOf, orgOf, stepsOf, unitById, unitsOfOrg} from '../store';
+import {deptName, dutiesOfUnit, holdsOf, meOf, nameOf, orgOf, otherCases, refsOfUnit, stepIdOf, stepsOf, unitById, unitsOfOrg, type State} from '../store';
 import type {Ctx} from './common';
 import {Cells} from './shapes';
-import {GuideBox} from './Guide';
+import {GuideBody, GuideBox} from './Guide';
 import {HowTo, Refs, Tenure, notedOf} from './Place';
 import {NewUnitModal, StandardCard, UnitStandard} from './Standard';
 import {placeColor} from './placeColor';
@@ -84,7 +84,8 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
             </div>
 
             <GuideBox s={s} setS={setS} toast={toast} unitId={u.id} />
-            <HowTo s={s} duties={duties} />
+            <HowTo s={s} setS={setS} toast={toast} duties={duties} />
+            <OtherCases key={u.id} s={s} unitId={u.id} />
             <Refs s={s} setS={setS} toast={toast} unitId={u.id} mine={mine} />
             <UnitStandard s={s} setS={setS} toast={toast} unitId={u.id} />
 
@@ -103,6 +104,57 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
           </article>
         )}
       </div>
+    </div>
+  );
+}
+
+const md = (iso: string) => `${Number(iso.slice(5, 7))}월 ${Number(iso.slice(8, 10))}일`;
+
+/**
+ * 다른 부서 사례 — 조직 전체에 공개한 부서의 업무 안내와 처리 순서 운영 방식(읽기만, 고치기는 그 부서만).
+ * 기본 화면에는 펼쳐 두지 않고 '다른 부서 사례 보기'로 찾아 읽는다. 공통 기준이 아니라는 것과 출처(부서·고친 날)를 늘 보인다.
+ */
+function OtherCases({s, unitId}: {s: State; unitId: string}) {
+  const list = otherCases(s, unitId);
+  const [open, setOpen] = useState(false);
+  const [dep, setDep] = useState<string | null>(null);
+  const cur = list.find(x => x.deptId === dep) ?? list[0];
+  return (
+    <div className="day others">
+      <div className="sec-h">
+        <h3 className="dept">다른 부서 사례</h3>
+        {list.length > 0 && <button className="textbtn" aria-expanded={open} onClick={() => setOpen(o => !o)}>{open ? '접기' : `다른 부서 사례 보기 · ${list.length}개 부서`}</button>}
+      </div>
+      {list.length === 0 && <p className="none">공개한 부서가 없습니다</p>}
+      {open && cur && (
+        <>
+          {list.length > 1 && (
+            <div className="chips oc-depts" role="tablist" aria-label="부서">
+              {list.map(x => <button key={x.deptId} role="tab" aria-selected={x === cur} className={`chip${x === cur ? ' on' : ''}`} onClick={() => setDep(x.deptId)}>{deptName(s, x.deptId)}</button>)}
+            </div>
+          )}
+          <div className="oc">
+            <p className="oc-h"><b>{deptName(s, cur.deptId)} 운영 방식</b>{cur.at && <span>{md(cur.at)} 고침</span>}</p>
+            <p className="oc-note">{deptName(s, cur.deptId)}에서 실제로 쓰는 방법입니다. 공통 기준이 아니며 다른 부서에 그대로 맞지 않을 수 있습니다.</p>
+            {cur.guide && <><p className="oc-sub">업무 안내 · {md(cur.guide.at)} {nameOf(s, cur.guide.by)} 고침</p><GuideBody html={cur.guide.html} refs={refsOfUnit(s, unitId)} spot={false} /></>}
+            {cur.ways.length > 0 && <p className="oc-sub">처리 순서에서 다르게 하는 것</p>}
+            {cur.ways.map(({duty, ways}) => (
+              <div key={duty.id} className="oc-way">
+                <h4>{duty.title}</h4>
+                {Object.entries(ways).map(([k, w]) => {
+                  const i = stepsOf(s, duty).findIndex((st, j) => stepIdOf(duty, st, j) === k);
+                  return (
+                    <p key={k} className="way">
+                      <span className="wk">{k === '_end' ? '끝에 더 하는 일' : i >= 0 ? `공통 · ${stepsOf(s, duty)[i].text}` : `공통에서 빠진 단계 · ${w.base}`}</span>
+                      {w.text.split('\n').map((t, j) => <span key={j} className="wt">{t}</span>)}
+                    </p>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

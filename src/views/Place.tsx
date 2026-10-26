@@ -1,11 +1,12 @@
 import {addDays, cycleOf, monthDay, occurrences, ruleLabel, ymd} from '../schedule';
 import {
-  deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf,
+  canEditCommon, canEditWay, deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf, waysOf,
   addRef, linkRef, otherRefs, recordsOfUnit, refUse, refsOfUnit, sentDispatches, stepsOf, today, unlinkRef, type State,
 } from '../store';
 import {itemsInRange, type Row} from '../days';
 import type {Duty} from '../model';
 import {RowButton, type Ctx} from './common';
+import {StepsBlock} from './Steps';
 import {placeColor} from './placeColor';
 import {useState, type CSSProperties} from 'react';
 
@@ -140,31 +141,26 @@ export function DeptPlace({s, open, setOpen, id, onBack}: Ctx & {id: string; onB
 }
 
 /**
- * 처리 순서 — 반복업무마다 적힌 순서를 한곳에서 읽는다(주의 줄 포함). 고치기는 그 반복업무를 눌러 연 오른쪽 판에서 한다.
- * 순서가 없는 반복업무는 이름만 한 줄로 모은다.
+ * 처리 순서 — 반복업무마다 공통 처리 순서와 그 아래 우리 부서 운영 방식(StepsBlock).
+ * 고칠 수 있는 사람(맡은 사람·분류 관리자)에게는 순서가 비어 있는 반복업무도 보여 쓸 수 있게 하고, 나머지에게는 이름만 한 줄로 모은다.
  */
-export function HowTo({s, duties}: {s: State; duties: Duty[]}) {
-  const has = duties.filter(d => stepsOf(s, d).length), none = duties.filter(d => !stepsOf(s, d).length);
+export function HowTo({s, setS, toast, duties}: Pick<Ctx, 's' | 'setS' | 'toast'> & {duties: Duty[]}) {
+  const dep = meOf(s)?.deptId;
+  const any = (d: Duty) => stepsOf(s, d).length > 0 || Object.keys(waysOf(s, dep, d.id)).length > 0;
+  const show = duties.filter(d => any(d) || canEditWay(s, d) || canEditCommon(s, d)), none = duties.filter(d => !show.includes(d));
   return (
     <div className="day howto">
       <h3 className="dept">처리 순서</h3>
       <p className="kind">반복업무마다, 조직 공통(업무 표준)</p>
-      {has.length === 0 && <p className="none">적힌 순서가 없습니다</p>}
-      {has.map(d => {
-        let n = 0;
-        return (
-          <div key={d.id} className="ht" data-spot={`how:${d.id}`}>
-            <h4>{d.title} <span>{ruleLabel(d.rule)}</span></h4>
-            <ol>
-              {stepsOf(s, d).map((st, i) => st.warn
-                ? <li key={i} data-spot={`step:${d.id}:${i}`} className="warn"><span className="wl">주의</span><span>{st.text}</span></li>
-                : <li key={i} data-spot={`step:${d.id}:${i}`}><span className="n">{++n}</span><span>{st.text}{st.form && <small>서식 · {st.form}</small>}</span></li>)}
-            </ol>
-            {d.basis && <p className="basis">근거 · {d.basis}</p>}
-          </div>
-        );
-      })}
-      {has.length > 0 && none.length > 0 && <p className="ht-none"><b>순서 없음</b>{none.map(d => d.title).join(', ')}</p>}
+      {show.length === 0 && <p className="none">적힌 순서가 없습니다</p>}
+      {show.map(d => (
+        <div key={d.id} className="ht" data-spot={`how:${d.id}`}>
+          <h4>{d.title} <span>{ruleLabel(d.rule)}</span></h4>
+          <StepsBlock s={s} setS={setS} toast={toast} duty={d} spot />
+          {d.basis && <p className="basis">근거 · {d.basis}</p>}
+        </div>
+      ))}
+      {show.length > 0 && none.length > 0 && <p className="ht-none"><b>순서 없음</b>{none.map(d => d.title).join(', ')}</p>}
     </div>
   );
 }
