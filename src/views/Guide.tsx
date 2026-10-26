@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {canEditGuide, guideOf, nameOf, refsOfUnit, saveGuide, type State} from '../store';
+import {canEditGuide, deptName, guideOf, meOf, nameOf, refsOfUnit, saveGuide, type State} from '../store';
 import type {Ref} from '../model';
 
 /**
@@ -44,7 +44,7 @@ function GuideBody({html, refs}: {html: string; refs: Ref[]}) {
       if (r.kind === 'link') { a.href = r.where; a.target = '_blank'; a.rel = 'noreferrer'; } else a.title = r.where;
     });
   }, [html, refs]);
-  return <div ref={box} className="gd-body" dangerouslySetInnerHTML={{__html: cleanGuide(html)}} />;
+  return <div ref={box} data-spot="guide" className="gd-body" dangerouslySetInnerHTML={{__html: cleanGuide(html)}} />;
 }
 
 export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) => void; toast: (m: string) => void; unitId: string}) {
@@ -109,7 +109,7 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
         <h3 className="dept">업무 안내</h3>
         {!editing && g && <span className="gd-who">{md(g.at)} {nameOf(s, g.by)} 고침{mine && <button className="textbtn" onClick={start}>고치기</button>}</span>}
       </div>
-      <p className="kind">업무 전체에 관한 것</p>
+      <p className="kind">업무 전체에 관한 것, {deptName(s, meOf(s)?.deptId)}에서 쌓은 것</p>
       {editing ? (
         <>
           <div className="tools" role="toolbar" aria-label="서식">

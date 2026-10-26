@@ -5,5 +5,7 @@ import {createContext, useContext} from 'react';
  * 줄의 이름표를 누르면 그 자리 화면이 열린다.
  */
 export type Place = {kind: 'unit' | 'dept'; id: string};
-export const PlaceNav = createContext<(p: Place) => void>(() => {});
+/** 찾기 결과에서 왔을 때 업무 화면 안에서 갈 자리와 강조할 말. anchor = 'top' | 'guide' | 'duty:id' | 'step:반복업무id:순번'. */
+export type Spot = {q: string; anchor: string; text?: string};
+export const PlaceNav = createContext<(p: Place, spot?: Spot) => void>(() => {});
 export const usePlaceNav = () => useContext(PlaceNav);

@@ -1,6 +1,6 @@
 # 시연 순서 (PC, 약 5분)
 
-자동 점검: `node scripts/screens/demo-flow.mjs scripts/screens/demo-flow.json` → `node scripts/screens/shoot.mjs scripts/screens/demo-flow.json <폴더>` (29단계, 단계마다 OK/CHECK)
+자동 점검: `node scripts/screens/demo-flow.mjs scripts/screens/demo-flow.json` → `node scripts/screens/shoot.mjs scripts/screens/demo-flow.json <폴더>` (28단계, 단계마다 OK/CHECK, 앱 날짜 2026-10-30 고정)
 
 | # | 장면 | 보여 줄 것 |
 |---|---|---|

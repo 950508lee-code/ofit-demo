@@ -2,6 +2,7 @@
 // node scripts/screens/demo-flow.mjs scripts/screens/demo-flow.json
 // node scripts/screens/shoot.mjs scripts/screens/demo-flow.json <저장 폴더>
 // 각 장면은 'OK …' 또는 'CHECK …'(기대와 다름)을 찍는다. 예외는 메시지가 그대로 찍힌다.
+// 앱의 날짜는 2026-10-30(금) 10시로 고정한다(fixDate). 오늘 할 일·요일에 따라 결과가 바뀌지 않게.
 import {writeFileSync} from 'node:fs';
 
 const H = `
@@ -28,7 +29,7 @@ const U = 'http://localhost:5180/';
 const s = (name, js, o = {}) => ({name, js: H + js, ...o});
 
 const scenes = [
-  {name: 'd00', url: U, loadWait: 1500},
+  {name: 'd00', url: U, loadWait: 1500, fixDate: '2026-10-30T10:00:00+09:00'},
   // 1. 시작
   s('d01-splash', `localStorage.clear(); location.reload(); return 1;`, {wait: 900}),
   s('d02-login', `await wait(3000); return check($$('button').some(b => b.innerText.includes('여기서 시작')), '로그인: ' + $$('.choices .choice').map(b => b.innerText.split(String.fromCharCode(10)).join(' ')).join(' | '));`),

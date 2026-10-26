@@ -24,7 +24,7 @@ export function SearchResults({s, q}: {s: State; q: string}) {
           <div key={g.id} className="sr-g">
             <h3 className="dept">{g.label} <span>{list.length}</span></h3>
             {list.map((h, i) => (
-              <button key={i} className="hit" onClick={() => goPlace({kind: 'unit', id: h.unitId})}>
+              <button key={i} className="hit" onClick={() => goPlace({kind: 'unit', id: h.unitId}, {q, anchor: h.anchor, text: h.text})}>
                 <b><Mark text={h.unit} /></b><span className="path">{h.where}</span>
                 {h.text && <p><Mark text={h.text} /></p>}
               </button>

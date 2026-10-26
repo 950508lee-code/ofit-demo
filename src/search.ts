@@ -2,7 +2,7 @@
 // 후임자는 정보가 어디에 적혀 있는지 모르므로 세 곳을 한 번에 본다. 결과 한 줄 = 업무 · 있는 곳 · 그 문장.
 import {dutiesOfUnit, guideOf, orgOf, stepsOf, unitsOfOrg, type State} from './store';
 
-export type Hit = {unitId: string; unit: string; where: string; text: string; group: 'name' | 'guide' | 'step'};
+export type Hit = {unitId: string; unit: string; where: string; text: string; group: 'name' | 'guide' | 'step'; anchor: string};
 
 const norm = (x: string) => x.replace(/\s+/g, '').toLowerCase();
 /** 저장된 업무 안내 글에서 문장(블록) 단위로 글자만 뽑는다. */
@@ -16,16 +16,16 @@ export function searchWork(s: State, q: string): Hit[] {
   const out: Hit[] = [];
   for (const u of unitsOfOrg(s, orgOf(s))) {
     const duties = dutiesOfUnit(s, u.id);
-    if (has(u.name)) out.push({unitId: u.id, unit: u.name, where: u.series, text: `반복업무 ${duties.length}개`, group: 'name'});
-    for (const d of duties) if (has(d.title)) out.push({unitId: u.id, unit: d.title, where: `${u.name} 반복업무`, text: '', group: 'name'});
+    if (has(u.name)) out.push({unitId: u.id, unit: u.name, where: u.series, text: `반복업무 ${duties.length}개`, group: 'name', anchor: 'top'});
+    for (const d of duties) if (has(d.title)) out.push({unitId: u.id, unit: d.title, where: `${u.name} 반복업무`, text: '', group: 'name', anchor: `duty:${d.id}`});
     const g = guideOf(s, u.id);
-    if (g) for (const b of blocks(g.html)) if (has(b)) out.push({unitId: u.id, unit: u.name, where: '업무 안내', text: b, group: 'guide'});
+    if (g) for (const b of blocks(g.html)) if (has(b)) out.push({unitId: u.id, unit: u.name, where: '업무 안내', text: b, group: 'guide', anchor: 'guide'});
     for (const d of duties) {
       let n = 0;
-      for (const st of stepsOf(s, d)) {
+      stepsOf(s, d).forEach((st, i) => {
         const label = st.warn ? '주의' : `${++n}단계`;
-        if (has(st.text)) out.push({unitId: u.id, unit: u.name, where: `처리 순서 · ${d.title} ${label}`, text: st.text, group: 'step'});
-      }
+        if (has(st.text)) out.push({unitId: u.id, unit: u.name, where: `처리 순서 · ${d.title} ${label}`, text: st.text, group: 'step', anchor: `step:${d.id}:${i}`});
+      });
     }
   }
   return out;

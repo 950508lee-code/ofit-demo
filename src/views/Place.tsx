@@ -10,7 +10,9 @@ import {Cells} from './shapes';
 import {UnitStandard} from './Standard';
 import {GuideBox} from './Guide';
 import {placeColor} from './placeColor';
-import {useState, type CSSProperties} from 'react';
+import {useEffect, useRef, useState, type CSSProperties} from 'react';
+import type {Spot} from './placeNav';
+import {showSpot} from './spot';
 
 
 const CYCLES = ['매일', '매주', '매월', '분기', '매년'] as const;
@@ -20,8 +22,16 @@ const CYCLES = ['매일', '매주', '매월', '분기', '매년'] as const;
  * 위에서부터(기존 시안의 업무 페이지 순서, 2026-10-26 사용자 판정): 개요 → 업무 안내(부서마다) → 처리 순서(반복업무마다) → 반복업무(박자·리듬별) → 참고자료
  * → 이 자리로 온 요청 → 업무 표준 → 지난 기록 → 거쳐 간 사람.
  */
-export function UnitPlace({s, setS, open, setOpen, toast, id, onBack, onGive}: Ctx & {id: string; onBack: () => void; onGive: () => void}) {
+export function UnitPlace({s, setS, open, setOpen, toast, id, spot, onBack, onGive}: Ctx & {id: string; spot?: Spot | null; onBack: () => void; onGive: () => void}) {
   const u = unitById(s, id);
+  const root = useRef<HTMLElement>(null);
+  // 찾기 결과에서 왔으면 화면 전환이 끝난 뒤 그 자리로 옮기고 찾은 말을 칠한다
+  useEffect(() => {
+    if (!spot || !root.current) return;
+    let undo = () => {};
+    const t = setTimeout(() => { if (root.current) undo = showSpot(root.current, spot); }, 260);
+    return () => { clearTimeout(t); undo(); };
+  }, [spot, id]);
   if (!u) return null;
   const me = meOf(s)!;
   const duties = dutiesOfUnit(s, id);
@@ -40,7 +50,7 @@ export function UnitPlace({s, setS, open, setOpen, toast, id, onBack, onGive}: C
     .map(h => ({pid: h.from, until: h.date, text: `${h.date.slice(0, 7).replace('-', '.')}까지`}));
 
   return (
-    <section className="list place" style={{'--pc': placeColor(s, {kind: 'unit', id})} as CSSProperties}>
+    <section ref={root} className="list place" style={{'--pc': placeColor(s, {kind: 'unit', id})} as CSSProperties}>
       <div className="flow-back"><button className="textbtn" onClick={onBack}>돌아가기</button></div>
       <div className="place-h">
         <div>
@@ -69,8 +79,8 @@ export function UnitPlace({s, setS, open, setOpen, toast, id, onBack, onGive}: C
             const nx = mine && c !== '매일' ? nextOf(ahead, d.id) : undefined;
             const r: Row = {kind: c === '매일' ? 'daily' : 'duty', id: d.id, date: nx ?? '', title: d.title, done: false, when};
             return mine && nx
-              ? <RowButton key={d.id} s={s} r={r} open={open} setOpen={setOpen} right={monthDay(nx)} />
-              : <div key={d.id} className="row static"><span className="dot" /><span className="t">{d.title}{when && <span className="meta"><span className="when">{when}</span></span>}</span></div>;
+              ? <div key={d.id} data-spot={`duty:${d.id}`}><RowButton s={s} r={r} open={open} setOpen={setOpen} right={monthDay(nx)} /></div>
+              : <div key={d.id} data-spot={`duty:${d.id}`} className="row static"><span className="dot" /><span className="t">{d.title}{when && <span className="meta"><span className="when">{when}</span></span>}</span></div>;
           })}
         </div>
       ))}
@@ -169,7 +179,7 @@ function HowTo({s, duties}: {s: State; duties: Duty[]}) {
   return (
     <div className="day howto">
       <h3 className="dept">처리 순서</h3>
-      <p className="kind">반복업무마다</p>
+      <p className="kind">반복업무마다, 조직 공통(업무 표준)</p>
       {has.length === 0 && <p className="none">적힌 순서가 없습니다</p>}
       {has.map(d => {
         let n = 0;
@@ -178,8 +188,8 @@ function HowTo({s, duties}: {s: State; duties: Duty[]}) {
             <h4>{d.title} <span>{ruleLabel(d.rule)}</span></h4>
             <ol>
               {stepsOf(s, d).map((st, i) => st.warn
-                ? <li key={i} className="warn"><span className="wl">주의</span><span>{st.text}</span></li>
-                : <li key={i}><span className="n">{++n}</span><span>{st.text}{st.form && <small>서식 · {st.form}</small>}</span></li>)}
+                ? <li key={i} data-spot={`step:${d.id}:${i}`} className="warn"><span className="wl">주의</span><span>{st.text}</span></li>
+                : <li key={i} data-spot={`step:${d.id}:${i}`}><span className="n">{++n}</span><span>{st.text}{st.form && <small>서식 · {st.form}</small>}</span></li>)}
             </ol>
             {d.basis && <p className="basis">근거 · {d.basis}</p>}
           </div>

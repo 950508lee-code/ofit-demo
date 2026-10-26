@@ -27,6 +27,11 @@ const {result: {targetId}} = await raw('Target.createTarget', {url: 'about:blank
 session = (await raw('Target.attachToTarget', {targetId, flatten: true})).result.sessionId;
 const evalJs = async js => { const r = await send('Runtime.evaluate', {expression: `(async()=>{${js}})()`, awaitPromise: true, returnByValue: true}); return r.result?.result?.value ?? r.result?.exceptionDetails?.exception?.description; };
 await send('Page.enable'); await send('Runtime.enable');
+// 장면 파일이 fixDate 를 주면 앱이 보는 날짜를 그 시각부터 흐르게 고정한다(요일에 따라 점검 결과가 바뀌지 않게)
+const fix = scenes.find(x => x.fixDate)?.fixDate;
+if (fix) await send('Page.addScriptToEvaluateOnNewDocument', {source: `(() => { const D = Date, off = D.parse(${JSON.stringify(fix)}) - D.now();
+  class F extends D { constructor(...a) { super(...(a.length ? a : [D.now() + off])); } static now() { return D.now() + off; } }
+  globalThis.Date = F; })();`});
 for (const sc of scenes) {
   const mobile = sc.mobile;
   await send('Emulation.setDeviceMetricsOverride', mobile ? {width: 375, height: 812, deviceScaleFactor: 2, mobile: true} : {width: 1440, height: 900, deviceScaleFactor: 1, mobile: false});

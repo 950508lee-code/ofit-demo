@@ -10,7 +10,7 @@ import {permission, show, type Perm} from './notify';
 import {DayList, type Open} from './views/common';
 import {DeptPlace, UnitPlace} from './views/Place';
 import {AccountSwitch} from './views/AccountSwitch';
-import {PlaceNav, type Place} from './views/placeNav';
+import {PlaceNav, type Place, type Spot} from './views/placeNav';
 import {Home} from './views/Home';
 import {Calendar} from './views/Calendar';
 import {Notices} from './views/Notices';
@@ -41,6 +41,8 @@ export default function App() {
   const endSplash = useCallback(() => setSplash(false), []);
   // 자리 화면(업무·부서). 열려 있으면 본문을 대신하고, 메뉴 표시는 원래 화면에 남긴다.
   const [place, setPlace] = useState<Place | null>(null);
+  // 찾기 결과에서 왔으면 업무 화면 안에서 그 자리로 가서 찾은 말을 강조한다
+  const [spot, setSpot] = useState<Spot | null>(null);
   // 시연용 계정 바꾸기를 한 번이라도 쓰면 본문 위에 '누구로 보는 중' 띠
   const [viewing, setViewing] = useState(false);
   // 상세 패널 닫기: 밀려 나가는 움직임이 끝난 뒤에 닫는다(PC 180ms·폰 250ms, 움직임 줄이기 120ms)
@@ -88,7 +90,7 @@ export default function App() {
   const go = (v: View, then?: () => void) =>
     swap(() => { setView(v); setOpen(null); setPlace(null); setWorkSub({kind: 'main'}); then?.(); }, v === view && !place);
   // 이름표를 누르면 그 자리(업무·부서) 화면으로.
-  const goPlace = (p: Place) => swap(() => { setPlace(p); setOpen(null); });
+  const goPlace = (p: Place, sp?: Spot) => swap(() => { setPlace(p); setOpen(null); setSpot(sp ?? null); });
 
   // 마감 알림: 창이 열려 있는 동안 30초마다 확인해 알림 내역에 쌓고, 허용돼 있으면 윈도우 알림도 띄운다.
   // 외부 서버가 필요 없어 업무망에서도 된다.
@@ -206,7 +208,7 @@ export default function App() {
             </div>
           )}
           <div className={`body${place ? '' : view === 'calendar' ? ' calbody' : ''}`}>
-            {place?.kind === 'unit' && <UnitPlace {...ctx} id={place.id} onBack={() => swap(() => { setPlace(null); setOpen(null); })}
+            {place?.kind === 'unit' && <UnitPlace {...ctx} id={place.id} spot={spot} onBack={() => swap(() => { setPlace(null); setOpen(null); })}
               onGive={() => go('me', () => setWorkSub({kind: 'send', preselect: place.id}))} />}
             {place?.kind === 'dept' && <DeptPlace {...ctx} id={place.id} onBack={() => swap(() => { setPlace(null); setOpen(null); })} />}
             {!place && view === 'home' && <Home onSettle={() => go('me', () => setWorkSub({kind: 'settle', mode: 'empty'}))} {...ctx} sel={sel} setSel={setSel} onCompose={p => setCompose({...p, target: 'me'})} />}

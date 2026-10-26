@@ -25,7 +25,7 @@ npx tsc --noEmit -p .
 
 ```
 node scripts/screens/demo-flow.mjs scripts/screens/demo-flow.json
-node scripts/screens/shoot.mjs scripts/screens/demo-flow.json <사진 폴더>   # 29단계, 단계마다 OK/CHECK
+node scripts/screens/shoot.mjs scripts/screens/demo-flow.json <사진 폴더>   # 28단계, 단계마다 OK/CHECK. 앱 날짜는 2026-10-30(금)으로 고정(fixDate)
 node scripts/screens/move-flow.mjs scripts/screens/move-flow.json          # 발령 장면
 node scripts/screens/same-unit-flow.mjs scripts/screens/same.json          # 발령 중 같은 업무 넘기며 받기
 ```
