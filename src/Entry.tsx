@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {arrival} from './arrive';
 import {HEADER, buildCatalog, decode, parseCsv, toCsv, type Built} from './catalog';
 import type {OrgId} from './model';
-import {addDays, occurrences, ruleLabel} from './schedule';
+import {addDays, occurrences} from './schedule';
 import {initialState, login, newOrgId, orgName, registerOrg, signup, today, unitsOfOrg, type State, deptName
 } from './store';
 import {UnitPicker, dutiesOf} from './ui';
@@ -226,8 +226,8 @@ export function Filling({s, units, onStart}: {s: State; units: string[]; onStart
   const duties = [...new Set(picked.flatMap(u => dutiesOf(s, u)))];
   const from = today(), to = addDays(from, 27);
   const total = duties.reduce((n, d) => n + occurrences(d.rule, from, to).length, 0);
-  // 반복업무 이름이 한 자리에서 차례로 바뀌고, 아래 선(시간)이 차오른다. 다 차면 잠깐 머물고 저절로 홈으로
-  const step = Math.max(180, Math.min(320, 1600 / Math.max(duties.length, 1)));
+  // 가운데 한 문장 + 아래 선(시간)이 차오른다(반복업무 이름은 보이지 않는다, 2026-10-26). 다 차면 잠깐 머물고 저절로 홈으로
+  const step = Math.max(100, Math.min(250, 1200 / Math.max(duties.length, 1)));
   const [shown, setShown] = useState(0);
   const started = useRef(false);
   const go = () => { if (started.current) return; started.current = true; arrival.pending = true; onStart(); };
@@ -237,14 +237,12 @@ export function Filling({s, units, onStart}: {s: State; units: string[]; onStart
     return () => clearTimeout(t);
   }, [shown, duties.length, step]);
   const done = shown >= duties.length;
-  const cur = duties[Math.max(0, shown - 1)];
   return (
     <div className={`flow fill2${done ? ' done' : ''}`} onClick={() => done && go()}>
-      <p className="fl-k">{done ? picked.map(u => u.name).join(' · ') : '업무분장에 따라 일정에 넣는 중'}</p>
       <div className="fl-word" aria-live="polite">
         {done
           ? <h1 key="done" className="fl-in">반복업무 {duties.length}개를<br />일정에 넣었습니다</h1>
-          : cur && shown > 0 && <h1 key={cur.id} className="fl-in">{cur.title}<small>{ruleLabel(cur.rule)}</small></h1>}
+          : <h1 key="ing">업무분장에 따라<br />일정을 채우고 있어요</h1>}
       </div>
       <div className="fl-line" aria-hidden="true"><i style={{transform: `scaleX(${duties.length ? shown / duties.length : 1})`}} /></div>
       <p className="fl-n">{done ? <>앞으로 4주 할 일 <b>{total}개</b></> : <>반복업무 {shown} / {duties.length}</>}</p>

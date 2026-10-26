@@ -1197,13 +1197,11 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .scope-t { display: inline-flex; align-items: center; gap: 6px; }
 .scope-t .textbtn { font-size: 13.5px; text-decoration: underline; text-underline-offset: 3px; }
 
-/* ── 시연 첫 장면(2026-10-26): 업무분장에 따라 주기업무를 일정에 넣는 화면 — 가운데 한 자리에서 반복업무 이름이 바뀌고 아래 선이 차오른다(스플래시와 같은 선) ── */
+/* ── 시연 첫 장면(2026-10-26): 업무분장에 따라 주기업무를 일정에 넣는 화면 — 가운데 한 문장, 아래 선이 차오른다(스플래시와 같은 선) ── */
 .flow.fill2 { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 16px 6vh; text-align: center; background: var(--bg); }
 .fill2.done { cursor: pointer; }
-.fl-k { margin: 0; font-size: 15px; font-weight: 600; color: var(--sub); }
-.fl-word { display: grid; place-items: center; min-height: 2.6em; margin-top: 18px; font-size: clamp(26px, 3.2vw, 34px); overflow: hidden; }
+.fl-word { display: grid; place-items: center; min-height: 2.6em; font-size: clamp(26px, 3.2vw, 34px); overflow: hidden; }
 .fl-word h1 { margin: 0; font-size: 1em; font-weight: 800; line-height: 1.3; letter-spacing: -.01em; }
-.fl-word h1 small { display: block; margin-top: 6px; font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--sub); }
 .fl-in { animation: fl-in 260ms cubic-bezier(.16,1,.3,1) both; }
 @keyframes fl-in { from { opacity: 0; transform: translateY(40%); } to { opacity: 1; transform: none; } }
 .fl-line { width: min(320px, 70vw); height: 2px; margin-top: 28px; background: var(--line); }
