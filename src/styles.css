@@ -268,7 +268,7 @@ section > .sh + * { margin-top: 4px; }
 .sp-veil { position: absolute; inset: 0; background: var(--bg); }
 .sp-logo { position: relative; font-size: clamp(56px, 12vw, 96px); font-weight: 900; letter-spacing: -.02em; line-height: 1; transform-origin: 0 0; white-space: nowrap; }
 .sp-mask { display: inline-block; overflow: hidden; vertical-align: top; padding: .06em .02em .08em; margin: -.06em -.02em -.08em; }
-.sp-mask > span { display: inline-block; animation: sp-up .9s both; }
+.sp-mask > span { display: inline-block; }
 @keyframes sp-up { from { transform: translateY(110%); } to { transform: none; } }
 [data-logo], .flow h1[data-logo] { line-height: 1; }
 body.splashing [data-logo] { visibility: hidden; }
@@ -1227,9 +1227,19 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .start-flow .start-join .choice.acct span { width: auto; }
 .signup-step { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--sub); }
 /* 스플래시: 글자로만(2026-10-26 사용자 판정). 가늘고 넓게 솟아 → 굵어지며 자간이 좁혀짐 → 아래 한 줄 */
-.sp-stack { position: relative; display: flex; flex-direction: column; align-items: center; gap: 22px; }
-.sp-mask > span { animation-name: sp-up, sp-weight; animation-duration: .9s, 1.15s; animation-fill-mode: both, both; }
-@keyframes sp-weight { 0% { font-weight: 200; letter-spacing: .16em; } 35% { font-weight: 200; letter-spacing: .16em; } 100% { font-weight: 900; letter-spacing: 0; } }
-.sp-tag { margin: 0; font-size: clamp(15px, 1.6vw, 19px); font-weight: 500; letter-spacing: .02em; color: var(--sub); animation: sp-tag .7s cubic-bezier(.16,1,.3,1) 1.05s both; }
-@keyframes sp-tag { from { opacity: 0; transform: translateY(8px); letter-spacing: .12em; } to { opacity: 1; transform: none; letter-spacing: .02em; } }
-@media (prefers-reduced-motion: reduce) { .sp-mask > span, .sp-tag { animation: none; } }
+.sp-stack { position: relative; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+/* 솟기(0.5초) + 굵어지기(선이 지나갈 때 0.42초, 자간도 함께 좁혀짐) */
+.sp-mask > span { animation-name: sp-up, sp-heavy; animation-duration: .5s, .42s; animation-fill-mode: both, both; }
+@keyframes sp-heavy { from { font-weight: 200; letter-spacing: .08em; } to { font-weight: 900; letter-spacing: 0; } }
+/* 선(시간): 왼쪽에서 그려지고 끝까지 간 뒤 뒤에서부터 걷힌다 */
+.sp-line { position: absolute; left: 0; right: 0; bottom: -.16em; height: max(2px, .028em); background: currentColor; clip-path: inset(0 100% 0 0); animation: sp-pass 1.1s .38s both; }
+@keyframes sp-pass {
+  0% { clip-path: inset(0 100% 0 0); animation-timing-function: cubic-bezier(.65,0,.35,1); }
+  60% { clip-path: inset(0 0 0 0); animation-timing-function: cubic-bezier(.65,0,.35,1); }
+  100% { clip-path: inset(0 0 0 100%); }
+}
+.sp-tag { margin: 0; font-size: clamp(15px, 1.6vw, 19px); font-weight: 500; letter-spacing: .02em; color: var(--sub); }
+.sp-tag > span { display: inline-block; animation: sp-tag .6s cubic-bezier(.16,1,.3,1) 1.15s both; }
+.sp-tag > span + span { color: var(--ink); font-weight: 700; animation-delay: 1.38s; }
+@keyframes sp-tag { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sp-mask > span, .sp-tag > span { animation: none; } .sp-line { display: none; } }
