@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {arrival} from './arrive';
 import {HEADER, buildCatalog, decode, parseCsv, toCsv, type Built} from './catalog';
 import type {OrgId} from './model';
-import {addDays, monthDay, occurrences, ruleLabel} from './schedule';
+import {addDays, occurrences, ruleLabel} from './schedule';
 import {initialState, login, newOrgId, orgName, registerOrg, signup, today, unitsOfOrg, type State, deptName
 } from './store';
 import {UnitPicker, dutiesOf} from './ui';
@@ -224,48 +224,30 @@ function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCanc
 export function Filling({s, units, onStart}: {s: State; units: string[]; onStart: () => void}) {
   const picked = s.units.filter(u => units.includes(u.id));
   const duties = [...new Set(picked.flatMap(u => dutiesOf(s, u)))];
-  const from = today(), days = Array.from({length: 28}, (_, i) => addDays(from, i));
-  const occ = duties.map(d => occurrences(d.rule, days[0], days[27]));
-  const total = occ.reduce((n, x) => n + x.length, 0);
-  const step = Math.min(240, 1800 / Math.max(duties.length, 1));
+  const from = today(), to = addDays(from, 27);
+  const total = duties.reduce((n, d) => n + occurrences(d.rule, from, to).length, 0);
+  // 반복업무 이름이 한 자리에서 차례로 바뀌고, 아래 선(시간)이 차오른다. 다 차면 잠깐 머물고 저절로 홈으로
+  const step = Math.max(180, Math.min(320, 1600 / Math.max(duties.length, 1)));
   const [shown, setShown] = useState(0);
   const started = useRef(false);
   const go = () => { if (started.current) return; started.current = true; arrival.pending = true; onStart(); };
   useEffect(() => {
     if (shown >= duties.length) { const t = setTimeout(go, 1300); return () => clearTimeout(t); }
-    const t = setTimeout(() => setShown(n => n + 1), shown === 0 ? 450 : step);
+    const t = setTimeout(() => setShown(n => n + 1), shown === 0 ? 400 : step);
     return () => clearTimeout(t);
   }, [shown, duties.length, step]);
   const done = shown >= duties.length;
-  const w0 = new Date(`${from}T00:00:00`).getDay(); // 칸은 오늘 요일부터
-  const dots = (date: string) => occ.slice(0, shown).reduce((n, x) => n + (x.includes(date) ? 1 : 0), 0);
-  const placed = occ.slice(0, shown).reduce((n, x) => n + x.length, 0);
+  const cur = duties[Math.max(0, shown - 1)];
   return (
-    <div className="flow fill2">
-      <h1>{done ? '일정에 넣었습니다' : '업무분장에 따라\n주기업무를 일정에 넣고 있어요'}</h1>
-      <p className="lead fill-units">{picked.map(u => u.name).join(' · ')}</p>
-      <div className="fill-bar" aria-hidden="true"><i style={{width: `${duties.length ? (shown / duties.length) * 100 : 100}%`}} /></div>
-      <div className="fill-cal" role="img" aria-label={`앞으로 4주 동안 할 일 ${placed}개`}>
-        {Array.from({length: 7}, (_, i) => <b key={i}>{'일월화수목금토'[(w0 + i) % 7]}</b>)}
-        {days.map(d => {
-          const n = dots(d);
-          return (
-            <span key={d} className={`fc${d === from ? ' today' : ''}`}>
-              <small>{Number(d.slice(8))}</small>
-              <span className="fd">{Array.from({length: Math.min(n, 3)}, (_, i) => <i key={i} />)}</span>
-            </span>
-          );
-        })}
+    <div className={`flow fill2${done ? ' done' : ''}`} onClick={() => done && go()}>
+      <p className="fl-k">{done ? picked.map(u => u.name).join(' · ') : '업무분장에 따라 일정에 넣는 중'}</p>
+      <div className="fl-word" aria-live="polite">
+        {done
+          ? <h1 key="done" className="fl-in">반복업무 {duties.length}개를<br />일정에 넣었습니다</h1>
+          : cur && shown > 0 && <h1 key={cur.id} className="fl-in">{cur.title}<small>{ruleLabel(cur.rule)}</small></h1>}
       </div>
-      <p className="fill-count">{done ? <>반복업무 <b>{duties.length}개</b> · 앞으로 4주 할 일 <b>{total}개</b></> : <>반복업무 {shown} / {duties.length}</>}</p>
-      <ul className="filling">
-        {duties.slice(0, shown).map((d, i) => (
-          <li key={d.id}><span>{d.title}</span><small>{ruleLabel(d.rule)}{occ[i][0] ? ` · 다음 ${monthDay(occ[i][0])}` : ''}</small></li>
-        ))}
-      </ul>
-      <div className="flow-foot">
-        <button className="primary wide" disabled={!done} onClick={go}>시작하기</button>
-      </div>
+      <div className="fl-line" aria-hidden="true"><i style={{transform: `scaleX(${duties.length ? shown / duties.length : 1})`}} /></div>
+      <p className="fl-n">{done ? <>앞으로 4주 할 일 <b>{total}개</b></> : <>반복업무 {shown} / {duties.length}</>}</p>
     </div>
   );
 }
