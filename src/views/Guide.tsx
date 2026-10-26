@@ -143,13 +143,10 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
         <p className="kind">{deptName(s, meOf(s)?.deptId)} 운영 방식 · 업무 전체에 관한 것</p>
         {/* 공개 범위: 업무 안내와 처리 순서의 우리 부서 방식을 한 번에. 처음 값은 우리 부서만(2026-10-26 사용자 판정) */}
         {mine ? (
-          <span className="seg2 scope" role="radiogroup" aria-label="공개 범위">
-            {(['dept', 'org'] as const).map(v => (
-              <button key={v} role="radio" aria-checked={scope === v} className={scope === v ? 'on' : ''}
-                onClick={() => { if (scope !== v) { setS(setScope(s, unitId, v)); toast(v === 'org' ? '조직 전체에 공개했습니다. 다른 부서는 읽기만 합니다' : '우리 부서만 봅니다'); } }}>
-                {v === 'dept' ? '우리 부서만' : '조직 전체'}
-              </button>
-            ))}
+          <span className="scope-t">{scope === 'org' ? '조직 전체 공개' : '우리 부서만 공개'}
+            <button className="textbtn" onClick={() => { const v = scope === 'org' ? 'dept' : 'org'; setS(setScope(s, unitId, v)); toast(v === 'org' ? '조직 전체에 공개했습니다. 다른 부서는 읽기만 합니다' : '우리 부서만 봅니다'); }}>
+              {scope === 'org' ? '우리 부서만 보기로' : '조직 전체에 공개'}
+            </button>
           </span>
         ) : <span className="scope-t">{scope === 'org' ? '조직 전체 공개' : '우리 부서만 공개'}</span>}
       </div>

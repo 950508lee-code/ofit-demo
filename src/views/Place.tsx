@@ -146,13 +146,15 @@ export function DeptPlace({s, open, setOpen, id, onBack}: Ctx & {id: string; onB
  */
 export function HowTo({s, setS, toast, duties}: Pick<Ctx, 's' | 'setS' | 'toast'> & {duties: Duty[]}) {
   const dep = meOf(s)?.deptId;
+  const [open, setOpen] = useState<string[]>([]);
   const any = (d: Duty) => stepsOf(s, d).length > 0 || Object.keys(waysOf(s, dep, d.id)).length > 0;
-  const show = duties.filter(d => any(d) || canEditWay(s, d) || canEditCommon(s, d)), none = duties.filter(d => !show.includes(d));
+  const show = duties.filter(d => any(d) || open.includes(d.id)), none = duties.filter(d => !show.includes(d));
+  const may = (d: Duty) => canEditWay(s, d) || canEditCommon(s, d);
   return (
     <div className="day howto">
       <h3 className="dept">처리 순서</h3>
       <p className="kind">반복업무마다, 조직 공통(업무 표준)</p>
-      {show.length === 0 && <p className="none">적힌 순서가 없습니다</p>}
+      {show.length === 0 && none.every(d => !may(d)) && <p className="none">적힌 순서가 없습니다</p>}
       {show.map(d => (
         <div key={d.id} className="ht" data-spot={`how:${d.id}`}>
           <h4>{d.title} <span>{ruleLabel(d.rule)}</span></h4>
@@ -160,7 +162,13 @@ export function HowTo({s, setS, toast, duties}: Pick<Ctx, 's' | 'setS' | 'toast'
           {d.basis && <p className="basis">근거 · {d.basis}</p>}
         </div>
       ))}
-      {show.length > 0 && none.length > 0 && <p className="ht-none"><b>순서 없음</b>{none.map(d => d.title).join(', ')}</p>}
+      {none.length > 0 && (show.length > 0 || none.some(may)) && (
+        <p className="ht-none"><b>순서 없음</b>
+          <span>{none.map((d, i) => <span key={d.id}>{i > 0 && ', '}{may(d)
+            ? <button className="textbtn inl" onClick={() => setOpen(o => [...o, d.id])}>{d.title}</button>
+            : d.title}</span>)}</span>
+        </p>
+      )}
     </div>
   );
 }

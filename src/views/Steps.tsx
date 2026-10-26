@@ -24,6 +24,8 @@ export function StepsBlock({s, setS, toast, duty, check, spot}: {
   const last = hist[hist.length - 1];
   const dname = deptName(s, dep);
   const mayWay = canEditWay(s, duty), mayCommon = canEditCommon(s, duty);
+  // 공통에서 단계가 빠졌는가(글만 바뀐 것과 구분해 보인다). 부서 방식과 이력은 지우지 않는다
+  const gone = (k: string) => k !== '_end' && !steps.some((st, i) => stepIdOf(duty, st, i) === k);
   const wayLine = (k: string) => {
     const w = ways[k];
     if (!w) return null;
@@ -31,7 +33,7 @@ export function StepsBlock({s, setS, toast, duty, check, spot}: {
       <p className={`way${wayStale(s, duty, k, w) ? ' stale' : ''}`}>
         <span className="wk">{dname} 운영 방식</span>
         {w.text.split('\n').map((t, i) => <span key={i} className="wt">{t}</span>)}
-        {wayStale(s, duty, k, w) && <span className="wx">공통 단계가 바뀌었습니다 · 확인 필요</span>}
+        {wayStale(s, duty, k, w) && <span className="wx">확인 필요 <small>{gone(k) ? `연결된 공통 단계가 없어짐 · 원래 단계 ${w.base}` : `공통 단계가 바뀜 · 쓸 때 ${w.base}`}</small></span>}
       </p>
     );
   };
@@ -55,17 +57,6 @@ export function StepsBlock({s, setS, toast, duty, check, spot}: {
   let n = 0;
   return (
     <div className="stepsb">
-      <div className="sb-h">
-        <span className="sb-src">
-          공통 처리 순서 · {last ? `${md(last.at)} ${nameOf(s, last.by)} 고침` : '기존 등록 자료'}
-          {hist.length > 0 && <button className="textbtn" aria-expanded={mode === 'hist'} onClick={() => setMode(m => (m === 'hist' ? '' : 'hist'))}>바뀐 기록 {hist.length}</button>}
-        </span>
-        <span className="sb-acts">
-          {mayWay && <button className="textbtn" onClick={() => setMode('way')}>우리 부서 방식</button>}
-          {mayCommon && <button className="textbtn" onClick={() => setMode('common')}>공통 순서 고치기</button>}
-        </span>
-      </div>
-      {mode === 'hist' && <History s={s} list={hist} />}
       {steps.length === 0 && <p className="plain">공통 처리 순서가 없습니다</p>}
       {steps.length > 0 && (
         <ol className={check ? 'checks sb-list' : 'sb-list'}>
@@ -92,6 +83,17 @@ export function StepsBlock({s, setS, toast, duty, check, spot}: {
       {/* 공통에 없는 단계에 붙어 있던 운영 방식(공통에서 단계가 빠짐)도 지우지 않고 보인다 */}
       {Object.keys(ways).filter(k => k !== '_end' && !steps.some((st, i) => stepIdOf(duty, st, i) === k)).map(k => <div key={k}>{wayLine(k)}</div>)}
       {wayLine('_end')}
+      <div className="sb-h sb-foot">
+        <span className="sb-src">
+          공통 처리 순서 · {last ? `${md(last.at)} ${nameOf(s, last.by)} 고침` : '기존 등록 자료'}
+          {hist.length > 0 && <button className="textbtn" aria-expanded={mode === 'hist'} onClick={() => setMode(m => (m === 'hist' ? '' : 'hist'))}>바뀐 기록 {hist.length}</button>}
+        </span>
+        <span className="sb-acts">
+          {mayWay && <button className="textbtn" onClick={() => setMode('way')}>우리 부서 방식</button>}
+          {mayCommon && <button className="textbtn" onClick={() => setMode('common')}>공통 순서 고치기</button>}
+        </span>
+      </div>
+      {mode === 'hist' && <History s={s} list={hist} />}
     </div>
   );
 }
@@ -116,6 +118,12 @@ function WayEditor({s, duty, onSave, onCancel}: {s: State; duty: Duty; onSave: (
           </label>
         );
       })}
+      {Object.entries(ways).filter(([k]) => k !== '_end' && !steps.some((st, i) => stepIdOf(duty, st, i) === k)).map(([k, w]) => (
+        <label key={k} className="wr">
+          <span className="wc">연결된 공통 단계가 없어진 것 · 원래 단계 {w.base}</span>
+          <input value={t[k] ?? ''} onChange={e => set(k, e.target.value)} placeholder="비우면 지웁니다" />
+        </label>
+      ))}
       <label className="wr">
         <span className="wc">{steps.length ? '공통 순서 끝에 우리 부서가 더 하는 일' : '우리 부서 처리 순서(한 줄에 한 단계)'}</span>
         <textarea rows={3} value={t._end ?? ''} onChange={e => set('_end', e.target.value)} />

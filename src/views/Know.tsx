@@ -85,8 +85,8 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
 
             <GuideBox s={s} setS={setS} toast={toast} unitId={u.id} />
             <HowTo s={s} setS={setS} toast={toast} duties={duties} />
-            <OtherCases key={u.id} s={s} unitId={u.id} />
             <Refs s={s} setS={setS} toast={toast} unitId={u.id} mine={mine} />
+            <OtherCases key={u.id} s={s} unitId={u.id} />
             <UnitStandard s={s} setS={setS} toast={toast} unitId={u.id} />
 
             <div className="day">
@@ -119,13 +119,13 @@ function OtherCases({s, unitId}: {s: State; unitId: string}) {
   const [open, setOpen] = useState(false);
   const [dep, setDep] = useState<string | null>(null);
   const cur = list.find(x => x.deptId === dep) ?? list[0];
+  if (!list.length) return null;
   return (
     <div className="day others">
       <div className="sec-h">
         <h3 className="dept">다른 부서 사례</h3>
-        {list.length > 0 && <button className="textbtn" aria-expanded={open} onClick={() => setOpen(o => !o)}>{open ? '접기' : `다른 부서 사례 보기 · ${list.length}개 부서`}</button>}
+        {<button className="textbtn" aria-expanded={open} onClick={() => setOpen(o => !o)}>{open ? '접기' : `다른 부서 사례 보기 · ${list.length}개 부서`}</button>}
       </div>
-      {list.length === 0 && <p className="none">공개한 부서가 없습니다</p>}
       {open && cur && (
         <>
           {list.length > 1 && (
