@@ -1226,6 +1226,10 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .start-flow .start-join { margin-top: 28px; }
 .start-flow .start-join .choice.acct span { width: auto; }
 .signup-step { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--sub); }
-/* 스플래시 배경 모션그래픽(2026-10-26): 화면을 덮되 글자는 앱 글자 그대로 위에 */
-.sp-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.sp-logo { z-index: 1; }
+/* 스플래시: 글자로만(2026-10-26 사용자 판정). 가늘고 넓게 솟아 → 굵어지며 자간이 좁혀짐 → 아래 한 줄 */
+.sp-stack { position: relative; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.sp-mask > span { animation-name: sp-up, sp-weight; animation-duration: .9s, 1.15s; animation-fill-mode: both, both; }
+@keyframes sp-weight { 0% { font-weight: 200; letter-spacing: .16em; } 35% { font-weight: 200; letter-spacing: .16em; } 100% { font-weight: 900; letter-spacing: 0; } }
+.sp-tag { margin: 0; font-size: clamp(15px, 1.6vw, 19px); font-weight: 500; letter-spacing: .02em; color: var(--sub); animation: sp-tag .7s cubic-bezier(.16,1,.3,1) 1.05s both; }
+@keyframes sp-tag { from { opacity: 0; transform: translateY(8px); letter-spacing: .12em; } to { opacity: 1; transform: none; letter-spacing: .02em; } }
+@media (prefers-reduced-motion: reduce) { .sp-mask > span, .sp-tag { animation: none; } }
