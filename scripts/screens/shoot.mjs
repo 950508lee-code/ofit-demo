@@ -7,15 +7,24 @@ import {join} from 'node:path';
 const [scenesFile, outDir] = process.argv.slice(2);
 const scenes = JSON.parse(readFileSync(scenesFile, 'utf8'));
 const CH = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const port = 9333;
 const prof = mkdtempSync(join(tmpdir(), 'ofitcdp-'));
-const chrome = spawn(CH, ['--headless=new', '--disable-gpu', '--hide-scrollbars', `--remote-debugging-port=${port}`, `--user-data-dir=${prof}`, '--window-size=1440,900', 'about:blank']);
+// 크롬과는 파이프(fd 3 = 보냄, fd 4 = 받음)로만 주고받는다. 포트를 열거나 HTTP로 접속하지 않는다.
+const chrome = spawn(CH, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--remote-debugging-pipe', `--user-data-dir=${prof}`, '--window-size=1440,900', 'about:blank'],
+  {stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe']});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let ws, id = 0; const pending = new Map();
-for (let i = 0; i < 50; i++) { try { const r = await fetch(`http://127.0.0.1:${port}/json/list`); const t = (await r.json()).find(x => x.type === 'page'); ws = new WebSocket(t.webSocketDebuggerUrl); break; } catch { await sleep(200); } }
-await new Promise(r => ws.addEventListener('open', r));
-ws.addEventListener('message', e => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } });
-const send = (method, params = {}) => new Promise(r => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({id: i, method, params})); });
+let id = 0, buf = '', session; const pending = new Map();
+chrome.stdio[4].on('data', d => {
+  buf += d.toString('utf8');
+  let k;
+  while ((k = buf.indexOf('\0')) >= 0) {
+    const m = JSON.parse(buf.slice(0, k)); buf = buf.slice(k + 1);
+    if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
+  }
+});
+const raw = (method, params = {}, sessionId) => new Promise(r => { const i = ++id; pending.set(i, r); chrome.stdio[3].write(JSON.stringify({id: i, method, params, ...(sessionId ? {sessionId} : {})}) + '\0'); });
+const send = (method, params = {}) => raw(method, params, session);
+const {result: {targetId}} = await raw('Target.createTarget', {url: 'about:blank'});
+session = (await raw('Target.attachToTarget', {targetId, flatten: true})).result.sessionId;
 const evalJs = async js => { const r = await send('Runtime.evaluate', {expression: `(async()=>{${js}})()`, awaitPromise: true, returnByValue: true}); return r.result?.result?.value ?? r.result?.exceptionDetails?.exception?.description; };
 await send('Page.enable'); await send('Runtime.enable');
 for (const sc of scenes) {
@@ -27,4 +36,4 @@ for (const sc of scenes) {
   writeFileSync(join(outDir, `${sc.name}.png`), Buffer.from(shot.result.data, 'base64'));
   console.log('찍음', sc.name);
 }
-ws.close(); chrome.kill();
+await raw('Browser.close').catch(() => {}); chrome.kill();
