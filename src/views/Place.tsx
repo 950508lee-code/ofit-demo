@@ -8,6 +8,7 @@ import type {Duty} from '../model';
 import {RowButton, type Ctx} from './common';
 import {Cells} from './shapes';
 import {UnitStandard} from './Standard';
+import {GuideBox} from './Guide';
 import {placeColor} from './placeColor';
 import {useState, type CSSProperties} from 'react';
 
@@ -16,7 +17,7 @@ const CYCLES = ['매일', '매주', '매월', '분기', '매년'] as const;
 
 /**
  * 업무 자리 화면 = 저절로 쌓이는 인수인계서.
- * 위에서부터(기존 시안의 업무 페이지 순서, 2026-10-26 사용자 판정): 개요 → 처리 순서 → 반복업무(박자·리듬별) → 참고자료
+ * 위에서부터(기존 시안의 업무 페이지 순서, 2026-10-26 사용자 판정): 개요 → 업무 안내(부서마다) → 처리 순서(반복업무마다) → 반복업무(박자·리듬별) → 참고자료
  * → 이 자리로 온 요청 → 업무 표준 → 지난 기록 → 거쳐 간 사람.
  */
 export function UnitPlace({s, setS, open, setOpen, toast, id, onBack, onGive}: Ctx & {id: string; onBack: () => void; onGive: () => void}) {
@@ -52,6 +53,8 @@ export function UnitPlace({s, setS, open, setOpen, toast, id, onBack, onGive}: C
           ? <button className="ghost" onClick={() => { setS(cancelHandover(s, pending.id)); toast('인수인계를 취소했습니다'); }}>{nameOf(s, pending.to)} 님에게 인수인계 중 · 취소</button>
           : <button className="ghost strong" onClick={onGive}>인수인계 하기</button>)}
       </div>
+
+      <GuideBox s={s} setS={setS} toast={toast} unitId={id} />
 
       <HowTo s={s} duties={duties} />
 
@@ -166,6 +169,7 @@ function HowTo({s, duties}: {s: State; duties: Duty[]}) {
   return (
     <div className="day howto">
       <h3 className="dept">처리 순서</h3>
+      <p className="kind">반복업무마다</p>
       {has.length === 0 && <p className="none">적힌 순서가 없습니다</p>}
       {has.map(d => {
         let n = 0;

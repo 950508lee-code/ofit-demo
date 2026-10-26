@@ -18,9 +18,10 @@ import {Me} from './views/Me';
 import type {WorkSub} from './views/Work';
 import {Compose, type ComposePreset} from './views/Compose';
 import {DispatchCard} from './views/Dispatch';
+import {SearchResults} from './views/Search';
 import {dateLabel} from './schedule';
 
-type View = 'home' | 'calendar' | 'notices' | 'me';
+type View = 'home' | 'calendar' | 'notices' | 'me' | 'search';
 
 export default function App() {
   const [s, setS] = useState<State>(loadState);
@@ -28,6 +29,9 @@ export default function App() {
   const [sel, setSel] = useState(today());
   const [workSub, setWorkSub] = useState<WorkSub>({kind: 'main'});
   const [open, setOpen] = useState<Open>(null);
+  // 업무 찾기(메뉴가 아니라 왼쪽 위 찾기 칸). '/' 키로 바로 쓴다
+  const [q, setQ] = useState('');
+  const qRef = useRef<HTMLInputElement>(null);
   const [compose, setCompose] = useState<ComposePreset | null>(null);
   // 알림 한 줄. 되돌릴 수 있는 일(완료)이면 바뀌기 전 상태를 함께 받아 '되돌리기'를 단다(5초).
   const [toastMsg, setToastMsg] = useState<{m: string; undo?: State; n: number} | null>(null);
@@ -44,7 +48,11 @@ export default function App() {
   useEffect(() => setLeaving(false), [open]);
   const escRef = useRef<() => void>(() => {});
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.scrim')) escRef.current(); };
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('.scrim')) escRef.current();
+      const t = e.target as HTMLElement;
+      if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(t.tagName) && !t.isContentEditable) { e.preventDefault(); qRef.current?.focus(); }
+    };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, []);
@@ -75,6 +83,8 @@ export default function App() {
     vt.call(document, run);
     setTimeout(() => { if (!done) { done = true; apply(); } }, 250);
   };
+  // 찾기는 쓰는 동안 화면이 바뀌므로 전환 움직임 없이 바로 결과로 간다(입력 칸 초점 유지)
+  const toSearch = () => { setView('search'); setPlace(null); setOpen(null); };
   const go = (v: View, then?: () => void) =>
     swap(() => { setView(v); setOpen(null); setPlace(null); setWorkSub({kind: 'main'}); then?.(); }, v === view && !place);
   // 이름표를 누르면 그 자리(업무·부서) 화면으로.
@@ -166,6 +176,12 @@ export default function App() {
           <button className={`topalarm m-only${view === 'notices' ? ' on' : ''}`} onClick={() => go('notices')}>
             알림{unread > 0 && <em className="badge">{unread}</em>}
           </button>
+          <label className="srch d-only">
+            <input ref={qRef} value={q} placeholder="업무 찾기" aria-label="업무 찾기"
+              onChange={e => { setQ(e.target.value); toSearch(); }}
+              onFocus={() => { if (q.trim()) toSearch(); }} />
+            {!q && <kbd aria-hidden="true">/</kbd>}
+          </label>
           <nav className="nav" aria-label="메뉴">
             {NAV.map(n => (
               <button key={n.id} className={`${view === n.id ? 'on' : ''}${n.only ? ` ${n.only}-only` : ''}`}
@@ -194,6 +210,7 @@ export default function App() {
               onGive={() => go('me', () => setWorkSub({kind: 'send', preselect: place.id}))} />}
             {place?.kind === 'dept' && <DeptPlace {...ctx} id={place.id} onBack={() => swap(() => { setPlace(null); setOpen(null); })} />}
             {!place && view === 'home' && <Home onSettle={() => go('me', () => setWorkSub({kind: 'settle', mode: 'empty'}))} {...ctx} sel={sel} setSel={setSel} onCompose={p => setCompose({...p, target: 'me'})} />}
+            {!place && view === 'search' && <SearchResults s={s} q={q} />}
             {!place && view === 'calendar' && <Calendar {...ctx} sel={sel} setSel={setSel} />}
             {!place && view === 'notices' && <Notices s={s} setS={setS} onGo={n => go(n.go!, () => { if (n.go === 'home') setSel(today()); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); })} />}
             {!place && view === 'me' && <Me onSwitch={n => { setS(n); setViewing(true); go('home'); setSel(today()); }} {...ctx} perm={perm} setPerm={setPerm} sub={workSub} setSub={setWorkSub} onHome={() => go('home', () => setSel(today()))} />}

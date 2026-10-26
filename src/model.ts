@@ -87,6 +87,12 @@ export type Rec = {dutyId: string; date: string; by: string; note: string};
  * 참고자료 — 지침·서식·시스템 주소처럼 일할 때 펴 보는 것. 파일은 올리지 않고 어디 있는지만 적는다(원본 권한은 원본을 따른다).
  * 업무에 붙어 있어서 인수인계·업무 고르기 때 업무와 함께 간다. 같은 자료를 여러 업무에 붙일 수 있다.
  */
+/**
+ * 업무 안내 — 업무 전체에 관한 부서의 경험(개요·흐름·예외·노하우). 업무 표준(조직 공통 반복업무·처리 순서)과 달리 부서마다 따로 쌓는다.
+ * 쓰지 않아도 된다. 그 부서에서 그 업무를 맡은 사람은 누구나 고친다. html 은 제목·목록·문단·참고자료 연결만 남긴 글.
+ */
+export type Guide = {html: string; by: string; at: string};
+
 export type Ref = {id: string; org: OrgId; kind: 'link' | 'file'; title: string; where: string; by: string; at: string};
 
 /**

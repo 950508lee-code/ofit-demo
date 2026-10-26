@@ -1,5 +1,5 @@
 // 상태와 동작. 화면은 여기 함수만 부른다 — 나중에 서버(Supabase)나 AI 를 붙일 때 이 파일만 바꾼다.
-import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Dept, type Dispatch, type Proposal, type Series, type Ref} from './model';
+import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Dept, type Dispatch, type Proposal, type Series, type Ref, type Guide} from './model';
 import type {Parsed} from './parse';
 import {addDays, occurrences, ruleLabel, type Rule} from './schedule';
 
@@ -25,6 +25,7 @@ export type State = {
   stepEdits: Record<string, Step[]>; // 업무 id → 고친 순서 (다음 담당자도 이 판을 본다)
   refs: Ref[]; // 참고자료(조직 안에서 같이 쓴다)
   unitRefs: Record<string, string[]>; // 단위업무 id → 붙인 참고자료 id(순서대로)
+  guides: Record<string, Guide>; // '부서:단위업무' → 업무 안내(부서마다 따로)
 };
 
 export const occKey = (id: string, date: string) => `${id}@${date}`;
@@ -72,9 +73,10 @@ export const initialState = (): State => ({
   stepEdits: {},
   refs: [],
   unitRefs: {},
+  guides: {},
 });
 
-const KEY = 'ofit-demo-v18';
+const KEY = 'ofit-demo-v19';
 export function loadState(): State {
   try {
     const raw = localStorage.getItem(KEY);
@@ -292,6 +294,24 @@ export const addRef = (s: State, unitId: string, x: Pick<Ref, 'kind' | 'title' |
 /** 이 업무에서만 뗀다. 다른 업무에 붙은 자료는 그대로다. */
 export const unlinkRef = (s: State, unitId: string, refId: string): State =>
   ({...s, unitRefs: {...s.unitRefs, [unitId]: (s.unitRefs[unitId] ?? []).filter(id => id !== refId)}});
+
+/* ── 업무 안내(부서마다) ── */
+const guideKey = (deptId: string, unitId: string) => `${deptId}:${unitId}`;
+/** 내 부서의 이 업무 안내. 없으면 undefined. */
+export const guideOf = (s: State, unitId: string) => {
+  const dep = meOf(s)?.deptId;
+  return dep ? s.guides[guideKey(dep, unitId)] : undefined;
+};
+/** 고칠 수 있는가 — 이 업무를 맡은 사람(같은 부서에서 여럿이 맡으면 모두). */
+export const canEditGuide = (s: State, unitId: string) => holdsOf(s, s.me).includes(unitId);
+/** 업무 안내 저장. 비우면 지운다. */
+export const saveGuide = (s: State, unitId: string, html: string): State => {
+  const dep = meOf(s)?.deptId;
+  if (!dep || !canEditGuide(s, unitId)) return s;
+  const k = guideKey(dep, unitId);
+  const {[k]: _old, ...rest} = s.guides;
+  return {...s, guides: html.trim() ? {...rest, [k]: {html, by: s.me, at: new Date().toISOString()}} : rest};
+};
 
 export const editSteps = (s: State, dutyId: string, steps: Step[]): State =>
   ({...s, stepEdits: {...s.stepEdits, [dutyId]: steps}});
