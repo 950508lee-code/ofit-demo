@@ -1,8 +1,9 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
+import {arrival} from './arrive';
 import {HEADER, buildCatalog, decode, parseCsv, toCsv, type Built} from './catalog';
 import type {OrgId} from './model';
-import {ruleLabel} from './schedule';
-import {initialState, login, newOrgId, orgName, registerOrg, signup, unitsOfOrg, type State, deptName
+import {addDays, monthDay, occurrences, ruleLabel} from './schedule';
+import {initialState, login, newOrgId, orgName, registerOrg, signup, today, unitsOfOrg, type State, deptName
 } from './store';
 import {UnitPicker, dutiesOf} from './ui';
 import {DeptBrowse} from './views/DeptPicker';
@@ -10,8 +11,12 @@ import {deptPath} from './store';
 
 /** 첫 화면 — 가입한 사람으로 들어가기, 가입하기, 조직 등록하기. */
 export function Login({s, setS}: {s: State; setS: (s: State) => void}) {
-  const [mode, setMode] = useState<'home' | 'join' | 'org'>('home');
+  const [mode, setMode] = useState<'home' | 'join' | 'org' | 'demo'>('home');
+  // 시연 첫 장면: 노원지사 새 직원 박공단으로 업무분장 고르기부터(이름·조직·부서는 채워 둔다). 박공단이 가입하고 나면 보통 계정 줄로 바뀐다
+  const nw = s.depts.find(d => d.name === '노원지사');
+  const fresh = nw && !s.people.some(p => p.name === '박공단') ? {name: '박공단', org: nw.org, deptId: nw.id} : null;
   if (mode === 'join') return <Signup s={s} setS={setS} onCancel={() => setMode('home')} />;
+  if (mode === 'demo' && fresh) return <Signup s={s} setS={setS} preset={fresh} onCancel={() => setMode('home')} />;
   if (mode === 'org') return <RegisterOrg s={s} onCancel={() => setMode('home')} onDone={n => { setS(n); setMode('home'); }} />;
   // 시연 계정은 '이 계정으로 무엇을 보는지' 한 줄로. 김건강에서 시작하게 한다. 시연 중에 가입한 사람은 부서를 보인다.
   const ROLE: Record<string, string> = {kim: '업무관리 · 인수인계', han: '반복업무 표준 검토', choi: '업무 표준 총괄 관리'};
@@ -23,11 +28,18 @@ export function Login({s, setS}: {s: State; setS: (s: State) => void}) {
       <p className="lead tag">담당자가 바뀌어도 업무는 이어집니다.</p>
       {people.length > 0 && <p className="choices-label">시연 계정</p>}
       <div className="choices">
+        {fresh && (
+          <button className="choice acct first" onClick={() => setMode('demo')}>
+            <span>{fresh.name}</span>
+            <small>노원지사 새 직원 · 업무분장부터</small>
+            <em className="go">여기서 시작</em>
+          </button>
+        )}
         {people.map(p => (
-          <button key={p.id} className={`choice acct${p.id === 'kim' ? ' first' : ''}`} onClick={() => setS(login(s, p.id))}>
+          <button key={p.id} className={`choice acct${p.id === 'kim' && !fresh ? ' first' : ''}`} onClick={() => setS(login(s, p.id))}>
             <span>{p.name}</span>
             <small>{ROLE[p.id] ?? (deptName(s, p.deptId) || orgName(s, p.org))}</small>
-            {p.id === 'kim' && <em className="go">여기서 시작</em>}
+            {p.id === 'kim' && !fresh && <em className="go">여기서 시작</em>}
           </button>
         ))}
       </div>
@@ -142,11 +154,11 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
 }
 
 /** 가입 — 이름 → 조직 → 업무 여러 개 → 반복일정이 들어간다. */
-function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCancel: () => void}) {
-  const [step, setStep] = useState<'name' | 'org' | 'dept' | 'units' | 'done'>('name');
-  const [deptId, setDeptId] = useState('');
-  const [name, setName] = useState('');
-  const [org, setOrg] = useState<OrgId | null>(null);
+function Signup({s, setS, onCancel, preset}: {s: State; setS: (s: State) => void; onCancel: () => void; preset?: {name: string; org: OrgId; deptId: string}}) {
+  const [step, setStep] = useState<'name' | 'org' | 'dept' | 'units' | 'done'>(preset ? 'units' : 'name');
+  const [deptId, setDeptId] = useState(preset?.deptId ?? '');
+  const [name, setName] = useState(preset?.name ?? '');
+  const [org, setOrg] = useState<OrgId | null>(preset?.org ?? null);
   const [picked, setPicked] = useState<string[]>([]);
 
   if (step === 'name') {
@@ -196,7 +208,7 @@ function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCanc
   if (step === 'units') {
     return (
       <UnitPicker s={s} org={org!} title="맡은 업무를 모두 고르세요" lead={`${deptPath(s, deptId)} · 여러 개 고를 수 있습니다`}
-        doneLabel="고르기" back={{label: '이전', onClick: () => setStep('dept')}}
+        doneLabel="고르기" back={preset ? {label: '처음으로', onClick: onCancel} : {label: '이전', onClick: () => setStep('dept')}}
         onDone={ids => { setPicked(ids); setStep('done'); }} />
     );
   }
@@ -204,29 +216,55 @@ function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCanc
   return <Filling s={s} units={picked} onStart={() => setS(signup(s, name.trim(), org!, deptId, picked))} />;
 }
 
-/** 고른 업무의 반복일정이 하나씩 들어가는 화면. */
+/**
+ * 업무분장에 따라 주기업무를 일정에 넣는 화면(시연의 첫 장면, 2026-10-26 사용자 요청).
+ * 반복업무가 하나씩 들어올 때마다 앞으로 4주 날짜 칸에 그 회차가 점으로 찍히고, 다 차면 잠시 뒤 저절로 홈으로 간다.
+ * 움직임은 하나에 250ms 이하·튕김 없음. 움직임 줄이기면 점·줄이 투명도로만 나타난다.
+ */
 export function Filling({s, units, onStart}: {s: State; units: string[]; onStart: () => void}) {
-  const duties = [...new Set(s.units.filter(u => units.includes(u.id)).flatMap(u => dutiesOf(s, u)))];
-  const step = Math.min(60, 1400 / Math.max(duties.length, 1));
+  const picked = s.units.filter(u => units.includes(u.id));
+  const duties = [...new Set(picked.flatMap(u => dutiesOf(s, u)))];
+  const from = today(), days = Array.from({length: 28}, (_, i) => addDays(from, i));
+  const occ = duties.map(d => occurrences(d.rule, days[0], days[27]));
+  const total = occ.reduce((n, x) => n + x.length, 0);
+  const step = Math.min(240, 1800 / Math.max(duties.length, 1));
   const [shown, setShown] = useState(0);
+  const started = useRef(false);
+  const go = () => { if (started.current) return; started.current = true; arrival.pending = true; onStart(); };
   useEffect(() => {
-    if (shown >= duties.length) return;
-    const t = setTimeout(() => setShown(n => n + 1), step);
+    if (shown >= duties.length) { const t = setTimeout(go, 1300); return () => clearTimeout(t); }
+    const t = setTimeout(() => setShown(n => n + 1), shown === 0 ? 450 : step);
     return () => clearTimeout(t);
   }, [shown, duties.length, step]);
   const done = shown >= duties.length;
-
+  const w0 = new Date(`${from}T00:00:00`).getDay(); // 칸은 오늘 요일부터
+  const dots = (date: string) => occ.slice(0, shown).reduce((n, x) => n + (x.includes(date) ? 1 : 0), 0);
+  const placed = occ.slice(0, shown).reduce((n, x) => n + x.length, 0);
   return (
-    <div className="flow">
-      <h1>{done ? `반복업무 ${duties.length}개가\n들어갔습니다` : '반복업무를\n넣고 있습니다'}</h1>
-      <p className="lead">{done ? '때가 되면 할 일에 저절로 올라옵니다' : `${shown} / ${duties.length}`}</p>
+    <div className="flow fill2">
+      <h1>{done ? '일정에 넣었습니다' : '업무분장에 따라\n주기업무를 일정에 넣고 있어요'}</h1>
+      <p className="lead fill-units">{picked.map(u => u.name).join(' · ')}</p>
+      <div className="fill-bar" aria-hidden="true"><i style={{width: `${duties.length ? (shown / duties.length) * 100 : 100}%`}} /></div>
+      <div className="fill-cal" role="img" aria-label={`앞으로 4주 동안 할 일 ${placed}개`}>
+        {Array.from({length: 7}, (_, i) => <b key={i}>{'일월화수목금토'[(w0 + i) % 7]}</b>)}
+        {days.map(d => {
+          const n = dots(d);
+          return (
+            <span key={d} className={`fc${d === from ? ' today' : ''}`}>
+              <small>{Number(d.slice(8))}</small>
+              <span className="fd">{Array.from({length: Math.min(n, 3)}, (_, i) => <i key={i} />)}</span>
+            </span>
+          );
+        })}
+      </div>
+      <p className="fill-count">{done ? <>반복업무 <b>{duties.length}개</b> · 앞으로 4주 할 일 <b>{total}개</b></> : <>반복업무 {shown} / {duties.length}</>}</p>
       <ul className="filling">
-        {duties.slice(0, shown).map(d => (
-          <li key={d.id}><span>{d.title}</span><small>{ruleLabel(d.rule)}</small></li>
+        {duties.slice(0, shown).map((d, i) => (
+          <li key={d.id}><span>{d.title}</span><small>{ruleLabel(d.rule)}{occ[i][0] ? ` · 다음 ${monthDay(occ[i][0])}` : ''}</small></li>
         ))}
       </ul>
       <div className="flow-foot">
-        <button className="primary wide" disabled={!done} onClick={onStart}>시작하기</button>
+        <button className="primary wide" disabled={!done} onClick={go}>시작하기</button>
       </div>
     </div>
   );

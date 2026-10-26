@@ -16,6 +16,8 @@ const txt = s => ($(s)?.innerText ?? '').split(String.fromCharCode(10)).join(' /
 const who = () => $('button.who').click();
 const nav = t => $$('.nav button').find(b => b.innerText.startsWith(t) && getComputedStyle(b).display !== 'none').click();
 const alarm = () => $('.bell').click();
+// 일정 채우는 화면은 다 차면 저절로 홈으로 간다. 아직 남아 있으면 '시작하기'를 누른다
+const start = async () => { for (let i = 0; i < 60 && $('.fill2'); i++) { const b = $$('button').find(x => x.innerText.trim() === '시작하기' && !x.disabled); if (b) { b.click(); break; } await wait(100); } await wait(400); };
 const know = async u => { nav('업무지식'); await wait(500); $$('.kl-g button').find(b => b.innerText.startsWith(u)).click(); await wait(500); };
 // 사람 바꾸기: 들어와 있으면 시연용 계정 바꾸기로, 아니면 로그인 화면에서
 const logoutTo = async n => {
@@ -43,7 +45,7 @@ const scenes = [
     for (const u of ['예산·회계', '인사·복무']) $$('label.choice').find(l => l.innerText.startsWith(u)).click();
     await wait(200); return check($('.flow-foot .primary')?.innerText.includes('2개'), '업무 2개 고름: ' + $('.flow-foot .primary')?.innerText);`),
   s('d07-filling', `$('.flow-foot .primary').click(); await wait(1200); return check(/반복업무/.test(document.body.innerText), '반복업무 채우는 장면');`, {wait: 300}),
-  s('d08-home', `await wait(1500); click('시작하기'); await wait(900); return check($$('.wday').length >= 5 && rows().length > 0, '홈: 이번 주 탑 ' + $$('.wday').length + '칸, 오늘 ' + rows().join(', '));`),
+  s('d08-home', `await wait(1500); await start(); await wait(900); return check($$('.wday').length >= 5 && rows().length > 0, '홈: 이번 주 탑 ' + $$('.wday').length + '칸, 오늘 ' + rows().join(', '));`),
   // 3. 홈
   s('d09-quick-preview', `setVal('.qi input', '매주 금요일 3시 주간 회의'); await wait(250); return check(txt('.quick .preview').includes('매주 금요일'), '빠른 입력 미리보기: ' + txt('.quick .preview'));`),
   s('d10-quick-added', `$('.qi button').click(); await wait(500); return check(rows().includes('주간 회의'), '오늘 목록에 주간 회의: ' + rows().join(', '));`),
@@ -93,7 +95,7 @@ const scenes = [
   s('d22-handover-send', `who(); await wait(250); click('로그아웃'); await wait(350);
     click('새 직원으로 시작하기'); await wait(250); setVal('input', '이광진'); click('다음'); await wait(300); click('국민건강보험공단'); await wait(300);
     setVal('.search', '광진'); await wait(250); $$('.choice').find(b => b.innerText.includes('광진지사')).click(); await wait(350);
-    $$('label.choice').find(l => l.innerText.startsWith('민원 응대')).click(); await wait(100); $('.flow-foot .primary').click(); await wait(2600); click('시작하기'); await wait(700);
+    $$('label.choice').find(l => l.innerText.startsWith('민원 응대')).click(); await wait(100); $('.flow-foot .primary').click(); await wait(2600); await start(); await wait(700);
     await logoutTo('김건강'); nav('내 업무'); await wait(300); click('인수인계 하기'); await wait(400);
     $$('label.choice').find(l => l.innerText.startsWith('이광진')).click(); $$('label.choice').find(l => l.innerText.startsWith('홍보')).click(); await wait(200);
     if ($('.flow textarea')) setVal('.flow textarea', '누리집 공지는 화요일 오전에 올립니다. 보도자료 결과는 언론 스크랩 폴더를 보세요'); await wait(100);

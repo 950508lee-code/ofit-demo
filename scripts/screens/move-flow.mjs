@@ -6,7 +6,7 @@ const st = src.indexOf('const H = `') + 11; const H = src.slice(st, src.indexOf(
 const s = (name, js, o = {}) => ({name, js: H + js, ...o});
 const signup = (n, dept, unit) => `click('새 직원으로 시작하기'); await wait(250); setVal('input', '${n}'); click('다음'); await wait(300); click('국민건강보험공단'); await wait(300);
     setVal('.search', '${dept}'); await wait(250); $$('.choice').find(b => b.innerText.includes('${dept}')).click(); await wait(350);
-    $$('label.choice').find(l => l.innerText.startsWith('${unit}')).click(); $('.flow-foot .primary').click(); await wait(2600); click('시작하기'); await wait(700);`;
+    $$('label.choice').find(l => l.innerText.startsWith('${unit}')).click(); $('.flow-foot .primary').click(); await wait(2600); await start(); await wait(700);`;
 writeFileSync(process.argv[2], JSON.stringify([
   {name: 'm0', url: 'http://localhost:5180/', loadWait: 1500},
   s('m1', `localStorage.clear(); location.reload(); return 1;`, {wait: 4000}),
@@ -28,6 +28,6 @@ writeFileSync(process.argv[2], JSON.stringify([
   s('m8-units', `$('.flow-foot .primary').click(); await wait(500); $$('label.choice').find(l => l.innerText.startsWith('시설·안전')).click(); await wait(200);
     return txt('.settle-step') + ' / ' + txt('.flow h1') + ' / skip=' + !!$('.settle-units .skip') + ' / ' + $('.flow-foot .primary').innerText;`),
   s('m9-fill', `$('.flow-foot .primary').click(); await wait(2600); return txt('.flow h1');`),
-  s('m10-home', `click('시작하기'); await wait(800); return '부서: ' + txt('button.who span') + ' / 오늘: ' + rows().join(', ') + ' / 받은 판: ' + !!$('.inbox.got');`),
+  s('m10-home', `await start(); await wait(800); return '부서: ' + txt('button.who span') + ' / 오늘: ' + rows().join(', ') + ' / 받은 판: ' + !!$('.inbox.got');`),
   s('m11-lee', `await logoutTo('이광진'); return '이광진 받을 인수인계: ' + txt('.inbox .what');`),
 ]));

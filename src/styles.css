@@ -1201,3 +1201,24 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .ht-none .textbtn.inl { min-height: 0; padding: 0; font-size: 14px; font-weight: 500; color: var(--sub); text-decoration: underline; text-underline-offset: 3px; }
 .scope-t { display: inline-flex; align-items: center; gap: 6px; }
 .scope-t .textbtn { font-size: 13.5px; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── 시연 첫 장면(2026-10-26): 업무분장에 따라 주기업무를 일정에 넣는 화면 — 앞으로 4주 칸에 회차가 점으로 찍힌다 ── */
+.fill2 h1 { white-space: pre-line; }
+.fill2 .fill-units { margin-top: 8px; font-weight: 600; color: var(--ink); }
+.fill-bar { height: 4px; margin-top: 20px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.fill-bar i { display: block; height: 100%; background: var(--ink); transition: width 220ms cubic-bezier(.2,0,0,1); }
+.fill-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 16px; }
+.fill-cal > b { padding-bottom: 2px; font-size: 12px; font-weight: 600; color: var(--sub); text-align: center; }
+.fill-cal .fc { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 44px; padding: 6px 0; border-radius: 8px; background: var(--chip); }
+.fill-cal .fc small { font-size: 12px; color: var(--sub); }
+.fill-cal .fc.today small { color: var(--ink); font-weight: 800; }
+.fill-cal .fd { display: flex; gap: 3px; min-height: 6px; }
+.fill-cal .fd i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); animation: dot-in 220ms cubic-bezier(.2,0,0,1) both; }
+@keyframes dot-in { from { opacity: 0; transform: scale(.4); } }
+.fill-count { margin-top: 14px; font-size: 15px; color: var(--sub); }
+.fill-count b { color: var(--ink); }
+.fill2 .filling { margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .fill-cal .fd i { animation: fade-in 120ms ease-out both; }
+  .fill-bar i { transition: none; }
+}

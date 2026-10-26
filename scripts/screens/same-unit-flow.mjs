@@ -6,7 +6,7 @@ const st = src.indexOf('const H = `') + 11; const H = src.slice(st, src.indexOf(
 const s = (name, js, o = {}) => ({name, js: H + 'try {' + js + '} catch (e) { return "ERR " + e.message; }', ...o});
 const signup = (n, dept, unit) => `click('새 직원으로 시작하기'); await wait(250); setVal('input', '${n}'); click('다음'); await wait(300); click('국민건강보험공단'); await wait(300);
     setVal('.search', '${dept}'); await wait(250); $$('.choice').find(b => b.innerText.includes('${dept}')).click(); await wait(350);
-    $$('label.choice').find(l => l.innerText.startsWith('${unit}')).click(); $('.flow-foot .primary').click(); await wait(2600); click('시작하기'); await wait(700);`;
+    $$('label.choice').find(l => l.innerText.startsWith('${unit}')).click(); $('.flow-foot .primary').click(); await wait(2600); await start(); await wait(700);`;
 const units = `nav('내 업무'); await wait(400); const r = $$('.wu-t .nm').map(x => x.innerText);`;
 writeFileSync(process.argv[2], JSON.stringify([
   {name: 'x0', url: 'http://localhost:5180/', loadWait: 1500},
@@ -22,7 +22,7 @@ writeFileSync(process.argv[2], JSON.stringify([
     await wait(200); $('.flow-foot .primary').click(); await wait(500);
     setVal('.search', '노원'); await wait(300); $$('.choice').find(b => b.innerText.includes('노원지사')).click(); await wait(500);
     click('받기'); await wait(500); $('.flow-foot .primary').click(); await wait(500);
-    $('.settle-units .skip').click(); await wait(2600); click('시작하기'); await wait(800);
+    $('.settle-units .skip').click(); await wait(2600); await start(); await wait(800);
     ${units} return '김건강(이광진 받기 전): ' + r.join(',');`),
   s('x3', `await logoutTo('이광진'); click('받기'); await wait(500); ${units} return '이광진: ' + r.join(',');`),
   s('x4', `await logoutTo('김건강'); ${units} return '김건강(이광진 받은 뒤): ' + r.join(',') + ' / 부서 ' + txt('button.who span');`),

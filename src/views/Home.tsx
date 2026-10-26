@@ -1,5 +1,7 @@
 import {addDays, dateLabel, HOLIDAYS, parse, weekday} from '../schedule';
 import {addTask, myUnits, today} from '../store';
+import {useEffect} from 'react';
+import {arrival} from '../arrive';
 import type {ComposePreset} from './Compose';
 import {itemsInRange, rowsOn, sundayOf} from '../days';
 import {DayList, InboxCards, QuickInput, ReceivedCards, useDirection, useWide, type Ctx} from './common';
@@ -21,6 +23,15 @@ export function Home({s, setS, open, setOpen, toast, sel, setSel, onCompose, onS
     ? `${d0.getFullYear()}년 ${d0.getMonth() + 1}월`
     : `${d0.getMonth() + 1}월 · ${d6.getMonth() + 1}월`;
   const day = today();
+  // 업무분장을 고르고 일정이 채워진 직후: 이번 주 칸 → 칸 안 할 일 → 오늘 할 일 줄을 차례로 띄운다(하나 240ms, 튕김 없음)
+  useEffect(() => {
+    if (!arrival.pending) return;
+    arrival.pending = false;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const els = [...document.querySelectorAll<HTMLElement>('.main .wday, .main .week .wd, .main .wday .it, .main .daylist .row, .main .daylist .day > h3, .main .quick')];
+    els.forEach((el, i) => el.animate(calm ? [{opacity: 0}, {opacity: 1}] : [{opacity: 0, transform: 'translateY(10px)'}, {opacity: 1, transform: 'none'}],
+      {duration: 240, delay: 120 + i * 45, easing: 'cubic-bezier(.2,0,0,1)', fill: 'backwards'}));
+  }, []);
   const dir = useDirection(start);
   const wide = useWide();
   // 맡은 업무가 없을 때: 홈에서 고르지 않고 자리 잡기 흐름으로 보낸다(업무는 늘 같은 전용 화면에서 정한다)
