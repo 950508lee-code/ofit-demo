@@ -90,7 +90,13 @@ export type Notice = {
 };
 
 /** 회차 기록 — 완료할 때 저절로 남는다. note 만 선택 입력. */
-export type Rec = {dutyId: string; date: string; by: string; note: string};
+/**
+ * 기록의 소속은 지금 담당자가 아니라 **기록이 생긴 때** 정해진다(2026-10-26 사용자 판정). 발령·업무 변경이 있어도 기록은 따라 움직이지 않는다.
+ * deptId·unitId: 기록할 때의 부서·업무. 옛 기록 중 그때 부서를 확인하지 못한 것은 deptId 가 비어 있고(지어 넣지 않는다), 쓴 사람에게만 '부서 확인 안 됨'으로 보인다.
+ */
+export type Rec = {dutyId: string; date: string; by: string; note: string; deptId?: string; unitId?: string};
+/** 부서 옮김(발령) 기록 — 언제 어디서 어디로. 옛 기록의 부서를 확인할 때도 쓴다. */
+export type Move = {pid: string; from: string; to: string; date: string};
 
 /**
  * 참고자료 — 지침·서식·시스템 주소처럼 일할 때 펴 보는 것. 파일은 올리지 않고 어디 있는지만 적는다(원본 권한은 원본을 따른다).
@@ -110,6 +116,8 @@ export type Ref = {id: string; org: OrgId; kind: 'link' | 'file'; title: string;
  */
 export type Handover = {
   id: string; from: string; to: string; unitIds: string[]; taskIds: string[]; date: string; note: string;
+  /** 보낸 때 보낸 사람의 부서(그 자리가 있던 곳). 거쳐 간 사람·인수인계 메모는 이 부서에 남는다. 옛 자료 중 확인 못 한 것은 비어 있다. */
+  deptId?: string;
   state: 'pending' | 'accepted' | 'declined' | 'cancelled';
   seen?: boolean; // 받은 사람이 홈의 '받은 업무' 판을 확인함
   at?: string; // 보낸 시각(ISO) — 보낸 뒤 같은 업무를 다시 맡았는지 가릴 때

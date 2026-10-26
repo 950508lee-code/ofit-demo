@@ -1,6 +1,6 @@
 import {addDays, cycleOf, monthDay, occurrences, ruleLabel, ymd} from '../schedule';
 import {
-  canEditCommon, canEditWay, deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf, waysOf,
+  canEditCommon, canEditWay, isOurHandover, deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf, waysOf,
   addRef, linkRef, otherRefs, recordsOfUnit, refUse, refsOfUnit, sentDispatches, stepsOf, today, unlinkRef, type State,
 } from '../store';
 import {itemsInRange, type Row} from '../days';
@@ -66,7 +66,7 @@ export function Records({s, unitId, limit = 8, head = true}: {s: State; unitId: 
       {noted.length === 0 && <p className="none">남긴 기록이 없습니다</p>}
       {noted.slice(0, limit).map(r => (
         <div key={r.dutyId + r.date + r.by} className="rec">
-          <span className="rd">{r.date.slice(2).replace(/-/g, '.')} · {nameOf(s, r.by)}</span>
+          <span className="rd">{r.date.slice(2).replace(/-/g, '.')} · {nameOf(s, r.by)}{!r.deptId && ' · 부서 확인 안 됨'}</span>
           <span className="rt">{s.duties.find(d => d.id === r.dutyId)?.title}</span>
           {r.note && <span className="rn">{r.note}</span>}
         </div>
@@ -80,7 +80,8 @@ export function Tenure({s, unitId}: {s: State; unitId: string}) {
   const me = meOf(s)!;
   const now = s.people.filter(p => p.deptId === me.deptId && holdsOf(s, p.id).includes(unitId))
     .map(p => ({pid: p.id, until: '', text: s.since[`${p.id}:${unitId}`] ? `${s.since[`${p.id}:${unitId}`].slice(0, 7).replace('-', '.')}부터 지금` : '지금'}));
-  const left = s.handovers.filter(h => h.state === 'accepted' && h.unitIds.includes(unitId) && s.people.find(p => p.id === h.from)?.deptId === me.deptId)
+  // 넘기고 떠난 사람: 그 인수인계가 우리 부서 자리에서 일어났으면(떠난 사람이 지금 어느 부서인지는 보지 않는다)
+  const left = s.handovers.filter(h => h.state === 'accepted' && h.unitIds.includes(unitId) && isOurHandover(s, h))
     .map(h => ({pid: h.from, until: h.date, text: `${h.date.slice(0, 7).replace('-', '.')}까지`}));
   return (
     <div className="day">

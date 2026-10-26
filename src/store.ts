@@ -1,5 +1,5 @@
 // 상태와 동작. 화면은 여기 함수만 부른다 — 나중에 서버(Supabase)나 AI 를 붙일 때 이 파일만 바꾼다.
-import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Dept, type Dispatch, type Proposal, type Series, type Ref, type Guide, type DeptWay, type StepChange} from './model';
+import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Dept, type Dispatch, type Proposal, type Series, type Ref, type Guide, type DeptWay, type StepChange, type Move} from './model';
 import type {Parsed} from './parse';
 import {addDays, occurrences, ruleLabel, type Rule} from './schedule';
 
@@ -29,6 +29,8 @@ export type State = {
   deptWays: Record<string, Record<string, DeptWay>>; // '부서:반복업무' → 단계 id('_end' = 공통 순서 끝에 더 하는 일) → 부서 운영 방식
   stepHistory: Record<string, StepChange[]>; // 반복업무 id → 공통 처리 순서가 바뀐 기록
   knowScope: Record<string, 'org'>; // '부서:단위업무' → 조직 전체 공개(없으면 우리 부서만, 2026-10-26 사용자 판정)
+  moves: Move[]; // 부서 옮김 기록
+  ver: number; // 저장 모양 판(바뀌면 migrate 가 옮긴다. 지우지 않는다)
 };
 
 export const occKey = (id: string, date: string) => `${id}@${date}`;
@@ -65,7 +67,9 @@ export const initialState = (): State => ({
   since: {},
   gotAt: {},
   dispatches: [],
-  records: [...SEED_RECORDS, ...seedHistory([seedUnit('예산·회계'), seedUnit('인사·복무'), seedUnit('홍보')])],
+  // 시연 기록은 김건강이 광진지사에서 남긴 것 — 그때의 부서·업무를 박아 둔다
+  records: [...SEED_RECORDS, ...seedHistory([seedUnit('예산·회계'), seedUnit('인사·복무'), seedUnit('홍보')])]
+    .map(r => ({...r, deptId: seedDeptOf(r.by), unitId: SEED_DUTIES.find(d => d.id === r.dutyId)?.unitIds[0]})),
   handovers: [],
   notices: [],
   tasks: [],
@@ -80,15 +84,69 @@ export const initialState = (): State => ({
   deptWays: {},
   stepHistory: {},
   knowScope: {},
+  moves: [],
+  ver: VER,
 });
 
-const KEY = 'ofit-demo-v21';
+/*
+ * 저장: 열쇠는 하나로 고정하고, 저장 모양이 바뀌면 판(VER)을 올려 migrate 가 옮긴다 — 판이 바뀌어도 자료를 지우지 않는다(2026-10-26).
+ * 예전처럼 판마다 열쇠를 바꾸던 자료(ofit-demo-v21 등)는 처음 한 번 가장 새 것을 읽어 옮기고, 옛 열쇠는 그대로 둔다.
+ */
+const KEY = 'ofit-demo';
+export const VER = 22;
+const OLD_KEYS = ['ofit-demo-v21', 'ofit-demo-v20', 'ofit-demo-v19', 'ofit-demo-v18', 'ofit-demo-v17'];
 export function loadState(): State {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return extendSeries(pruneNotices({...initialState(), ...JSON.parse(raw)}));
+    const raw = localStorage.getItem(KEY) ?? OLD_KEYS.map(k => localStorage.getItem(k)).find(Boolean);
+    if (raw) return extendSeries(pruneNotices(migrate({...initialState(), ...JSON.parse(raw)} as State, JSON.parse(raw).ver ?? 0)));
   } catch { /* 저장소를 못 쓰는 환경 */ }
   return initialState();
+}
+const seedDeptOf = (pid: string) => SEED_PEOPLE.find(p => p.id === pid)?.deptId;
+/** 옛 판의 자료를 지금 모양으로. 확인할 수 있는 것만 채우고, 못 하면 비워 둔다. */
+export function migrate(s: State, from: number): State {
+  let n = {...s, ver: VER};
+  if (from < 22) n = {...n, records: n.records.map(r => (r.deptId ? r : restoreRecord(n, r))), handovers: n.handovers.map(h => (h.deptId ? h : restoreHandover(n, h)))};
+  return n;
+}
+/**
+ * 옛 기록(부서·업무가 안 박힌 것)의 그때 부서·업무 되살리기 — 증거가 있을 때만.
+ * 업무: 그 반복업무가 든 업무가 하나뿐이면 그것, 아니면 쓴 사람이 그때 맡고 있던 것이 하나로 정해질 때만.
+ * 부서: ① 쓴 사람이 지금도 그 업무를 맡고 있고, 맡은 날(since)이 기록보다 앞이며, 그 뒤로 빼거나 인수인계한 일이 없으면 → 지금 부서
+ *      ② 시연 처음 사람이고, 기록이 그 사람의 첫 변화(업무 빼기·맡기·인수인계·부서 옮김)보다 앞이면 → 처음 부서
+ *      ③ 그 밖에는 비워 둔다(지금 부서를 그때 부서로 지어 넣지 않는다).
+ */
+/** 옛 인수인계의 보낸 때 부서 — 보낸 사람에게 그날 이후(그날 포함) 다른 변화가 없으면 지금 부서, 처음 사람이 첫 변화 전에 보냈으면 처음 부서. 아니면 비워 둔다. */
+function restoreHandover(s: State, h: Handover): Handover {
+  const ev = changesOf(s, h.from).filter(e => e.id !== h.id).map(e => e.date).sort();
+  const me = s.people.find(p => p.id === h.from);
+  if (me && !ev.some(d => d >= h.date)) return {...h, deptId: me.deptId};
+  if (seedDeptOf(h.from) && (!ev.length || h.date < ev[0])) return {...h, deptId: seedDeptOf(h.from)};
+  return h;
+}
+/** 사람의 변화(업무 빼기·맡기·인수인계·부서 옮김)가 있었던 날들. 옛 기록의 그때 부서를 확인할 때만 쓴다. */
+const changesOf = (s: State, pid: string) => [
+  ...Object.entries(s.until).filter(([k]) => k.startsWith(`${pid}:`)).map(([, d]) => ({id: '', date: addDays(d, 1)})),
+  ...Object.entries(s.since).filter(([k]) => k.startsWith(`${pid}:`)).map(([, d]) => ({id: '', date: d})),
+  ...s.handovers.filter(h => h.from === pid || h.to === pid).map(h => ({id: h.id, date: h.date})),
+  ...(s.moves ?? []).filter(m => m.pid === pid).map(m => ({id: '', date: m.date})),
+];
+function restoreRecord(s: State, r: Rec): Rec {
+  const duty = s.duties.find(d => d.id === r.dutyId);
+  const cands = duty?.unitIds ?? [];
+  const heldThen = cands.filter(u => holdsOf(s, r.by).includes(u) && (s.since[`${r.by}:${u}`] ?? '9999') <= r.date);
+  const unitId = cands.length === 1 ? cands[0] : heldThen.length === 1 ? heldThen[0] : undefined;
+  const events = changesOf(s, r.by).map(e => e.date).sort();
+  const me = s.people.find(p => p.id === r.by);
+  let deptId: string | undefined;
+  const u = unitId ?? heldThen[0];
+  if (me && u && holdsOf(s, r.by).includes(u)) {
+    const since = s.since[`${r.by}:${u}`];
+    const after = events.filter(d => since && d > since);
+    if (since && since <= r.date && !after.length) deptId = me.deptId;
+  }
+  if (!deptId && seedDeptOf(r.by) && (!events.length || r.date < events[0])) deptId = seedDeptOf(r.by);
+  return {...r, unitId, deptId};
 }
 export function saveState(s: State) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* 무시 */ }
@@ -137,12 +195,20 @@ export const inWindow = (w: {from: string; to?: string}, date: string) => date >
 export const mySince = (s: State, d: Duty) =>
   d.unitIds.filter(id => holdsOf(s, s.me).includes(id)).map(id => s.since[`${s.me}:${id}`] ?? '2000-01-01').sort()[0] ?? '9999-12-31';
 /** 자리는 '우리 부서의 이 업무' — 기록도 같은 부서 사람 것만 본다(다른 지사 기록은 섞지 않는다). */
-export const sameDeptIds = (s: State) => { const dep = s.people.find(p => p.id === s.me)?.deptId; return new Set(s.people.filter(p => p.deptId === dep).map(p => p.id)); };
+/**
+ * 우리 부서 기록인가 — 기록이 생긴 때의 부서로 가른다(쓴 사람이 지금 어느 부서인지는 보지 않는다).
+ * 그때 부서를 확인하지 못한 옛 기록은 쓴 사람에게만 보인다.
+ */
+export const isOurRecord = (s: State, r: Rec) => (r.deptId ? r.deptId === meOf(s)?.deptId : r.by === s.me);
+/** 이 업무의 우리 부서 기록. 업무가 박힌 기록은 그 업무에만, 옛 기록은 그 반복업무가 든 업무 모두에. */
 export const recordsOfUnit = (s: State, unitId: string) => {
   const ids = new Set(s.duties.filter(d => d.unitIds.includes(unitId)).map(d => d.id));
-  const mates = sameDeptIds(s);
-  return s.records.filter(r => ids.has(r.dutyId) && mates.has(r.by));
+  return s.records.filter(r => ids.has(r.dutyId) && (r.unitId ? r.unitId === unitId : true) && isOurRecord(s, r));
 };
+/** 이 반복업무 회차의 우리 부서 기록(다른 부서가 같은 날 끝낸 것은 섞이지 않는다). */
+export const recordOf = (s: State, dutyId: string, date: string) =>
+  s.records.find(r => r.dutyId === dutyId && r.date === date && isOurRecord(s, r));
+export const recordsOfDuty = (s: State, dutyId: string) => s.records.filter(r => r.dutyId === dutyId && isOurRecord(s, r));
 export const meOf = (s: State) => s.people.find(p => p.id === s.me);
 export const nameOf = (s: State, id?: string) => s.people.find(p => p.id === id)?.name ?? '';
 export const orgOf = (s: State): OrgId => meOf(s)?.org ?? 'nhis';
@@ -203,7 +269,7 @@ export const sendHandover = (s: State, to: string, unitIds: string[], taskIds: s
   const hid = uid();
   return addNotice({
     ...s,
-    handovers: [...s.handovers, {id: hid, from: s.me, to, unitIds, taskIds, date: today(), at: new Date().toISOString(), note, state: 'pending'}],
+    handovers: [...s.handovers, {id: hid, from: s.me, to, unitIds, taskIds, date: today(), at: new Date().toISOString(), note, state: 'pending', deptId: meOf(s)?.deptId}],
   }, {
     to, kind: 'handover', go: 'home', handoverId: hid,
     title: `${nameOf(s, s.me)} 님이 인수인계를 보냈습니다`,
@@ -270,8 +336,10 @@ export function upcomingOf(s: State, unitIds: string[], taskIds: string[], days 
 export const nextDateOf = (s: State, unitId: string) => upcomingOf(s, [unitId], [], 120).dates[0]?.date;
 
 export const inboxOf = (s: State) => s.handovers.filter(h => h.to === s.me && h.state === 'pending');
+/** 이 인수인계가 우리 부서 자리에서 일어난 것인가 — 보낸 때의 부서로 가른다. 부서를 확인 못 한 옛 것은 주고받은 두 사람에게만. */
+export const isOurHandover = (s: State, h: Handover) => (h.deptId ? h.deptId === meOf(s)?.deptId : h.from === s.me || h.to === s.me);
 export const lastNote = (s: State, unitId: string) =>
-  [...s.handovers].reverse().find(h => h.unitIds.includes(unitId) && h.state === 'accepted' && h.note);
+  [...s.handovers].reverse().find(h => h.unitIds.includes(unitId) && h.state === 'accepted' && h.note && isOurHandover(s, h));
 
 /**
  * 넘겨줄 때 남길 말의 초안. 지금은 비워 둔다.
@@ -282,10 +350,15 @@ export const draftNote = (_s: State, _unitId: string): string => '';
 /* ── 업무 하기 ── */
 export const setProgress = (s: State, dutyId: string, date: string, v: boolean[]): State =>
   ({...s, progress: {...s.progress, [occKey(dutyId, date)]: v}});
-export const complete = (s: State, dutyId: string, date: string, note: string): State =>
-  ({...s, records: [...s.records, {dutyId, date, by: s.me, note}]});
+/** 완료 — 지금 부서·지금 맡은 업무를 기록에 박는다(발령·업무 변경 뒤에도 기록은 여기 남는다). */
+export const complete = (s: State, dutyId: string, date: string, note: string): State => {
+  const d = dutyById(s, dutyId);
+  const unitId = d?.unitIds.find(u => holdsOf(s, s.me).includes(u)) ?? d?.unitIds[0];
+  return {...s, records: [...s.records, {dutyId, date, by: s.me, note, deptId: meOf(s)?.deptId, unitId}]};
+};
+/** 완료 되돌리기 — 내가 남긴 그 회차 기록만(다른 부서·다른 사람 기록은 건드리지 않는다). */
 export const uncomplete = (s: State, dutyId: string, date: string): State =>
-  ({...s, records: s.records.filter(r => !(r.dutyId === dutyId && r.date === date))});
+  ({...s, records: s.records.filter(r => !(r.dutyId === dutyId && r.date === date && r.by === s.me))});
 /* ── 참고자료 ── */
 export const refsOfUnit = (s: State, unitId: string) =>
   (s.unitRefs[unitId] ?? []).map(id => s.refs.find(r => r.id === id)).filter((r): r is Ref => !!r);
@@ -633,4 +706,8 @@ export const receivedRecently = (s: State) =>
 export const seeHandover = (s: State, id: string): State => ({...s, handovers: s.handovers.map(h => (h.id === id ? {...h, seen: true} : h))});
 
 /** 발령 — 내 부서를 바꾼다. 맡던 업무 정리(인수인계·빼기)는 자리 잡기 흐름이 먼저 한다. */
-export const moveDept = (s: State, deptId: string): State => ({...s, people: s.people.map(p => (p.id === s.me ? {...p, deptId} : p))});
+export const moveDept = (s: State, deptId: string): State => ({
+  ...s,
+  people: s.people.map(p => (p.id === s.me ? {...p, deptId} : p)),
+  moves: [...s.moves, {pid: s.me, from: meOf(s)?.deptId ?? '', to: deptId, date: today()}],
+});

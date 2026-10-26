@@ -3,7 +3,7 @@ import {type Duty, type Task, type Unit} from './model';
 import {cycleOf, dateLabel, ruleLabel, shortDate} from './schedule';
 import {
   cancelHandover, complete, lastNote, occKey, pendingOf, removeTask, setProgress,
-  nameOf, stepsOf, toggleTask, uncomplete, type State, sameDeptIds, deptName, meOf
+  nameOf, stepsOf, toggleTask, uncomplete, type State, recordOf, recordsOfDuty, deptName, meOf
 } from './store';
 import {dutiesOf} from './ui';
 import {usePlaceNav} from './views/placeNav';
@@ -27,11 +27,10 @@ export function Head({over, title, sub, onClose}: {over?: string; title: string;
 
 /** 업무 카드 — 언제(머리), 어떻게, 지난번, 완료. 순서는 처음엔 비어 있고 일하면서 남긴다. */
 export function DutyCard({s, setS, toast, onClose, duty, date}: Props & {duty: Duty; date: string}) {
-  const rec = s.records.find(r => r.dutyId === duty.id && r.date === date);
+  const rec = recordOf(s, duty.id, date);
   const steps = stepsOf(s, duty);
   const checks = rec ? steps.map(() => true) : (s.progress[occKey(duty.id, date)] ?? steps.map(() => false));
-  const mates = sameDeptIds(s);
-  const past = s.records.filter(r => r.dutyId === duty.id && r.date !== date && mates.has(r.by)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+  const past = recordsOfDuty(s, duty.id).filter(r => r.date !== date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   const hand = duty.unitIds.map(id => lastNote(s, id)).find(Boolean);
   const units = s.units.filter(u => duty.unitIds.includes(u.id)).map(u => u.name).join(' · ');
   const [note, setNote] = useState('');
@@ -85,7 +84,7 @@ export function DutyCard({s, setS, toast, onClose, duty, date}: Props & {duty: D
 
 /** 매일 하는 일 — 그날의 매일 반복업무를 한 번에 체크한다. */
 export function DailyCard({s, setS, onClose, duties, date}: Props & {duties: Duty[]; date: string}) {
-  const done = (d: Duty) => s.records.some(r => r.dutyId === d.id && r.date === date);
+  const done = (d: Duty) => !!recordOf(s, d.id, date);
   const left = duties.filter(d => !done(d)).length;
   return (
     <aside className="detail" aria-label="매일 하는 일">
