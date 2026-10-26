@@ -5,7 +5,7 @@ import {RepeatList} from './RepeatList';
 import {SettleFlow} from '../Settle';
 import {dateLabel, monthDay} from '../schedule';
 import {
-  cancelHandover, handoverableTasks, myItems, myUnits, nameOf, nextDateOf, orgOf, pendingOf, releaseUnits, sendHandover,
+  cancelHandover, handoverableTasks, myUnits, nameOf, nextDateOf, orgOf, pendingOf, releaseUnits, sendHandover,
   takeUnits, unitsOfOrg,
 } from '../store';
 import type {Handover} from '../model';
@@ -56,8 +56,8 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome}: Ctx &
     return (
       <section className="list">
         <HandoverFlow s={s} preselect={sub.preselect} onCancel={() => setSub({kind: 'main'})}
-          onSend={(to, unitIds, taskIds, note, itemIds) => {
-            setS(sendHandover(s, to, unitIds, taskIds, note, itemIds));
+          onSend={(to, unitIds, taskIds, note) => {
+            setS(sendHandover(s, to, unitIds, taskIds, note));
             setSub({kind: 'main'});
             toast(`${nameOf(s, to)} 님에게 보냈습니다. 받으면 옮겨 갑니다`);
           }} />
@@ -110,7 +110,7 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome}: Ctx &
       <div className="card">
       <div className="sec-h">
         <h3 className="dept">인수인계</h3>
-        {(units.length > 0 || myItems(s).length > 0 || handoverableTasks(s).length > 0) && <button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'send'}); }}>인수인계 하기</button>}
+        {(units.length > 0 || handoverableTasks(s).length > 0) && <button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'send'}); }}>인수인계 하기</button>}
       </div>
       {sent.length === 0 && past.length === 0 && <p className="none">주고받은 인수인계가 없습니다. 받은 인수인계는 홈 맨 위에 뜹니다.</p>}
       {sent.map(h => (

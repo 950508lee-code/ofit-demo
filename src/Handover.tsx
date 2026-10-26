@@ -1,7 +1,7 @@
 import {Cells} from './views/shapes';
 import {useState} from 'react';
 import {dateLabel, monthDay, ruleLabel} from './schedule';
-import {colleagues, deptName, stepsOf, draftNote, groupById, handoverableTasks, myItems, myUnits, nextDateOf, pendingOf, upcomingOf, type State} from './store';
+import {colleagues, deptName, stepsOf, draftNote, handoverableTasks, myUnits, nextDateOf, pendingOf, upcomingOf, type State} from './store';
 import {dutiesOf} from './ui';
 
 /**
@@ -10,7 +10,7 @@ import {dutiesOf} from './ui';
  */
 export function HandoverFlow({s, preselect, onCancel, onSend}: {
   s: State; preselect?: string; onCancel: () => void;
-  onSend: (to: string, unitIds: string[], taskIds: string[], note: string, itemIds: string[]) => void;
+  onSend: (to: string, unitIds: string[], taskIds: string[], note: string) => void;
 }) {
   const myDept = s.people.find(p => p.id === s.me)?.deptId;
   // 같은 부서 사람이 먼저 — 인수인계는 대개 같은 자리 후임에게 간다
@@ -23,11 +23,9 @@ export function HandoverFlow({s, preselect, onCancel, onSend}: {
   const [to, setTo] = useState(people.length === 1 ? people[0].id : '');
   const [unitIds, setUnitIds] = useState<string[]>(preselect ? [preselect] : []);
   const [taskIds, setTaskIds] = useState<string[]>([]);
-  const [itemIds, setItemIds] = useState<string[]>([]);
-  const items = myItems(s).filter(({i}) => !i.doneBy);
   const [note, setNote] = useState(() => (preselect ? draftNote(s, preselect) : ''));
   const flip = (list: string[], id: string) => (list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
-  const total = unitIds.length + taskIds.length + itemIds.length;
+  const total = unitIds.length + taskIds.length;
 
   return (
     <div className="flow">
@@ -75,29 +73,14 @@ export function HandoverFlow({s, preselect, onCancel, onSend}: {
         </>
       )}
 
-      {items.length > 0 && (
-        <>
-          <h3 className="dept">그룹 항목</h3>
-          {items.map(({e, i}) => (
-            <label key={i.id} className="choice check">
-              <input type="checkbox" checked={itemIds.includes(i.id)} onChange={() => setItemIds(l => flip(l, i.id))} />
-              <span className="ct">
-                <b>{i.text}</b>
-                <small>{groupById(s, e.groupId)?.name} · {e.title} · {dateLabel(e.due)}까지</small>
-              </span>
-            </label>
-          ))}
-        </>
-      )}
-
-      {total > 0 && <Upcoming s={s} unitIds={unitIds} taskIds={taskIds} itemIds={itemIds} heading="받는 사람 할 일에 이렇게 들어갑니다" />}
+      {total > 0 && <Upcoming s={s} unitIds={unitIds} taskIds={taskIds} heading="받는 사람 할 일에 이렇게 들어갑니다" />}
 
       <h3 className="dept">남길 말 <span>선택</span></h3>
       <textarea className="note" rows={3} placeholder="다음 담당자가 알아야 할 것" value={note} onChange={e => setNote(e.target.value)} />
 
       <div className="flow-foot">
-        <button className="primary wide" disabled={!to || total === 0} onClick={() => onSend(to, unitIds, taskIds, note.trim(), itemIds)}>
-          {!to ? '받을 사람을 고르세요' : total === 0 ? '넘길 것을 고르세요' : `보내기 · 업무 ${unitIds.length}개${taskIds.length + itemIds.length ? ` · 일정 ${taskIds.length + itemIds.length}개` : ''}`}
+        <button className="primary wide" disabled={!to || total === 0} onClick={() => onSend(to, unitIds, taskIds, note.trim())}>
+          {!to ? '받을 사람을 고르세요' : total === 0 ? '넘길 것을 고르세요' : `보내기 · 업무 ${unitIds.length}개${taskIds.length ? ` · 일정 ${taskIds.length}개` : ''}`}
         </button>
       </div>
     </div>
@@ -105,10 +88,10 @@ export function HandoverFlow({s, preselect, onCancel, onSend}: {
 }
 
 /** 넘어갈 일이 앞으로 석 달 동안 언제 들어오는지 날짜순으로. 보내는 쪽과 받는 쪽이 같은 표를 본다. */
-export function Upcoming({s, unitIds, taskIds, itemIds = [], heading, limit = 6}: {
-  s: State; unitIds: string[]; taskIds: string[]; itemIds?: string[]; heading: string; limit?: number;
+export function Upcoming({s, unitIds, taskIds, heading, limit = 6}: {
+  s: State; unitIds: string[]; taskIds: string[]; heading: string; limit?: number;
 }) {
-  const {dates, daily} = upcomingOf(s, unitIds, taskIds, 92, itemIds);
+  const {dates, daily} = upcomingOf(s, unitIds, taskIds, 92);
   const shown = dates.slice(0, limit);
   return (
     <div className="upcoming">

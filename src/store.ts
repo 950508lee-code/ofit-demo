@@ -1,5 +1,5 @@
 // 상태와 동작. 화면은 여기 함수만 부른다 — 나중에 서버(Supabase)나 AI 를 붙일 때 이 파일만 바꾼다.
-import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Group, type GEvent, type GComment, type GPost, type Dept, type Dispatch, type Proposal, type Series, type Ref} from './model';
+import {SEED_DEPTS, SEED_DUTIES, SEED_ORGS, SEED_PEOPLE, SEED_RECORDS, SEED_UNITS, type Duty, type Org, type OrgId, type Person, type Rec, type Step, type Task, type Handover, type Notice, type Unit, type Dept, type Dispatch, type Proposal, type Series, type Ref} from './model';
 import type {Parsed} from './parse';
 import {addDays, occurrences, ruleLabel, type Rule} from './schedule';
 
@@ -17,13 +17,9 @@ export type State = {
   records: Rec[];
   handovers: Handover[];
   notices: Notice[];
-  groups: Group[];
-  gevents: GEvent[];
-  gcomments: GComment[];
-  gposts: GPost[];
   tasks: Task[];
   progress: Record<string, boolean[]>; // '업무@날짜' → 체크리스트 진행
-  series: Series[]; // 반복으로 보낸 부서·그룹 일정 묶음
+  series: Series[]; // 반복으로 보낸 요청 묶음
   until: Record<string, string>; // '사람:업무' → 마지막으로 맡은 날(뺐거나 인수인계로 넘긴 업무). 그날까지 회차·기록은 남는다
   proposals: Proposal[]; // 업무 표준 제안(승인되면 units·duties에 들어간다)
   stepEdits: Record<string, Step[]>; // 업무 id → 고친 순서 (다음 담당자도 이 판을 본다)
@@ -68,10 +64,6 @@ export const initialState = (): State => ({
   records: [...SEED_RECORDS, ...seedHistory([seedUnit('예산·회계'), seedUnit('인사·복무'), seedUnit('홍보')])],
   handovers: [],
   notices: [],
-  groups: [],
-  gevents: [],
-  gcomments: [],
-  gposts: [],
   tasks: [],
   progress: {},
   proposals: [],
@@ -82,7 +74,7 @@ export const initialState = (): State => ({
   unitRefs: {},
 });
 
-const KEY = 'ofit-demo-v17';
+const KEY = 'ofit-demo-v18';
 export function loadState(): State {
   try {
     const raw = localStorage.getItem(KEY);
@@ -199,14 +191,14 @@ const pruneNotices = (s: State): State => {
 const unitNames = (s: State, ids: string[]) => s.units.filter(u => ids.includes(u.id)).map(u => u.name).join(', ');
 
 /** 넘겨주기 — 받는 사람에게 요청이 간다. 받기 전까지 담당은 그대로이고 보낸 사람이 취소할 수 있다. */
-export const sendHandover = (s: State, to: string, unitIds: string[], taskIds: string[], note: string, itemIds: string[] = []): State =>
+export const sendHandover = (s: State, to: string, unitIds: string[], taskIds: string[], note: string): State =>
   addNotice({
     ...s,
-    handovers: [...s.handovers, {id: uid(), from: s.me, to, unitIds, taskIds, itemIds, date: today(), at: new Date().toISOString(), note, state: 'pending'}],
+    handovers: [...s.handovers, {id: uid(), from: s.me, to, unitIds, taskIds, date: today(), at: new Date().toISOString(), note, state: 'pending'}],
   }, {
     to, kind: 'handover', go: 'home',
     title: `${nameOf(s, s.me)} 님이 인수인계를 보냈습니다`,
-    body: [unitNames(s, unitIds), taskIds.length + itemIds.length ? `일정 ${taskIds.length + itemIds.length}개` : ''].filter(Boolean).join(' · '),
+    body: [unitNames(s, unitIds), taskIds.length ? `일정 ${taskIds.length}개` : ''].filter(Boolean).join(' · '),
   });
 
 const settle = (s: State, id: string, state: 'accepted' | 'declined' | 'cancelled'): State => {
@@ -231,10 +223,6 @@ const settle = (s: State, id: string, state: 'accepted' | 'declined' | 'cancelle
     gotAt: state === 'accepted' ? {...s.gotAt, ...Object.fromEntries(h.unitIds.map(u => [`${h.to}:${u}`, new Date().toISOString()]))} : s.gotAt,
     until: state === 'accepted' ? {...s.until, ...Object.fromEntries(leaving.map(u => [`${h.from}:${u}`, addDays(today(), -1)]))} : s.until,
     tasks: state === 'accepted' ? s.tasks.map(t => (h.taskIds.includes(t.id) ? {...t, owner: h.to} : t)) : s.tasks,
-    // 넘긴 그룹 항목은 받는 사람이 담당이 된다(댓글 맥락도 그대로 본다)
-    gevents: state === 'accepted' && h.itemIds?.length
-      ? s.gevents.map(e => ({...e, items: e.items.map(i => (h.itemIds!.includes(i.id) ? {...i, owner: h.to} : i))}))
-      : s.gevents,
     handovers: s.handovers.map(x => (x.id === id ? {...x, state, date: state === 'accepted' ? today() : x.date} : x)),
   };
 };
@@ -250,7 +238,7 @@ export const handoverableTasks = (s: State) =>
  * 인수인계로 넘어갈 것이 앞으로 언제 돌아오는지 — 날짜순(먼저 돌아오는 것이 위).
  * 매일 하는 업무는 날짜마다 늘어놓지 않고 개수만 센다.
  */
-export function upcomingOf(s: State, unitIds: string[], taskIds: string[], days = 92, itemIds: string[] = []) {
+export function upcomingOf(s: State, unitIds: string[], taskIds: string[], days = 92) {
   const from = today(), to = addDays(from, days);
   const duties = s.duties.filter(d => d.unitIds.some(u => unitIds.includes(u)));
   const byDate = new Map<string, string[]>();
@@ -259,7 +247,6 @@ export function upcomingOf(s: State, unitIds: string[], taskIds: string[], days 
     if (d.rule.kind === 'daily') continue;
     for (const date of occurrences(d.rule, from, to)) put(date, d.title);
   }
-  for (const e of s.gevents) for (const i of e.items) if (itemIds.includes(i.id) && e.due >= from && e.due <= to) put(e.due, i.text);
   for (const t of s.tasks.filter(x => taskIds.includes(x.id))) {
     const dates = t.rule ? occurrences(t.rule, from, to) : [t.date!].filter(x => x >= from && x <= to);
     for (const date of dates) put(date, t.title);
@@ -326,99 +313,6 @@ export const updateTask = (s: State, id: string, p: {title: string; date: string
   ...s,
   tasks: s.tasks.map(t => (t.id !== id ? t : {...t, title: p.title, date: p.date, time: p.time, rule: p.rule})),
 });
-
-/* ── 그룹(공동 프로젝트) ── */
-const code6 = () => String(Math.floor(100000 + Math.random() * 900000));
-const md = (d: string) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일`;
-export const myGroups = (s: State) => s.groups.filter(g => g.members.includes(s.me));
-export const groupById = (s: State, id?: string) => s.groups.find(g => g.id === id);
-export const eventById = (s: State, id?: string) => s.gevents.find(e => e.id === id);
-export const eventsOf = (s: State, groupId: string) => s.gevents.filter(e => e.groupId === groupId).sort((a, b) => a.due.localeCompare(b.due));
-export const progressOf = (e: GEvent) => ({done: e.items.filter(i => i.doneBy).length, all: e.items.length});
-/** 내가 담당인 그룹 항목(홈·달력에 들어간다). */
-export const myItems = (s: State) =>
-  s.gevents.flatMap(e => e.items.filter(i => i.owner === s.me).map(i => ({e, i})))
-    .filter(({e}) => groupById(s, e.groupId)?.members.includes(s.me));
-
-const toMembers = (s: State, g: Group, n: Omit<Notice, 'id' | 'at' | 'read' | 'to'>, except: string[] = [s.me]): State =>
-  g.members.filter(m => !except.includes(m)).reduce((acc, to) => addNotice(acc, {...n, to}), s);
-
-export const createGroup = (s: State, name: string): {s: State; id: string} => {
-  const id = uid();
-  let code = code6();
-  while (s.groups.some(g => g.code === code)) code = code6();
-  return {s: {...s, groups: [...s.groups, {id, name, code, members: [s.me], admins: [s.me], createdAt: new Date().toISOString()}]}, id};
-};
-/** 초대코드로 참여. 없는 코드면 null. */
-export const joinByCode = (s: State, code: string): {s: State; id: string} | null => {
-  const g = s.groups.find(x => x.code === code.trim());
-  if (!g) return null;
-  if (g.members.includes(s.me)) return {s, id: g.id};
-  const n = {...s, groups: s.groups.map(x => (x.id === g.id ? {...x, members: [...x.members, s.me]} : x))};
-  return {s: toMembers(n, g, {kind: 'group', go: 'groups', groupId: g.id, title: `${nameOf(s, s.me)} 님이 그룹에 들어왔습니다`, body: g.name}), id: g.id};
-};
-export const leaveGroup = (s: State, groupId: string): State => ({
-  ...s,
-  groups: s.groups.map(g => (g.id === groupId ? {...g, members: g.members.filter(m => m !== s.me), admins: g.admins.filter(m => m !== s.me)} : g)),
-});
-export const deleteGroup = (s: State, groupId: string): State => ({
-  ...s,
-  groups: s.groups.filter(g => g.id !== groupId),
-  gevents: s.gevents.filter(e => e.groupId !== groupId),
-  gposts: s.gposts.filter(p => p.groupId !== groupId),
-});
-
-/** 그룹 일정 만들기 — 항목 담당자에게는 '배정' 알림, 나머지 멤버에게는 '새 일정' 알림. */
-export const addGroupEvent = (s: State, groupId: string, title: string, due: string, items: {text: string; owner?: string}[]): State => {
-  const g = groupById(s, groupId)!;
-  const e: GEvent = {id: uid(), groupId, title, due, by: s.me, items: items.map(x => ({id: uid(), ...x})), createdAt: new Date().toISOString()};
-  let n: State = {...s, gevents: [...s.gevents, e]};
-  const owners = [...new Set(items.map(i => i.owner).filter((x): x is string => !!x && x !== s.me))];
-  for (const o of owners) {
-    const mine = items.filter(i => i.owner === o).map(i => i.text);
-    n = addNotice(n, {
-      to: o, kind: 'group', go: 'groups', groupId,
-      title: `'${mine[0]}'${mine.length > 1 ? ` 외 ${mine.length - 1}건` : ''} 항목이 내게 배정됐습니다`,
-      body: `${g.name} · ${title} · ${md(due)}까지`,
-    });
-  }
-  return toMembers(n, g, {kind: 'group', go: 'groups', groupId, title: `${g.name}에 새 일정이 올라왔습니다`, body: `${title} · ${md(due)}까지`}, [s.me, ...owners]);
-};
-export const addItem = (s: State, eventId: string, text: string, owner?: string): State =>
-  ({...s, gevents: s.gevents.map(e => (e.id === eventId ? {...e, items: [...e.items, {id: uid(), text, owner}]} : e))});
-/** 항목 완료·취소. 완료하면 일정 만든 사람에게 알린다. */
-export const toggleItem = (s: State, eventId: string, itemId: string): State => {
-  const e = s.gevents.find(x => x.id === eventId)!;
-  const it = e.items.find(i => i.id === itemId)!;
-  const done = !it.doneBy;
-  let n: State = {
-    ...s,
-    gevents: s.gevents.map(x => (x.id !== eventId ? x : {
-      ...x,
-      items: x.items.map(i => (i.id !== itemId ? i : done ? {...i, doneBy: s.me, doneOn: today()} : {...i, doneBy: undefined, doneOn: undefined})),
-    })),
-  };
-  if (done && e.by !== s.me) {
-    const g = groupById(s, e.groupId);
-    const p = progressOf(n.gevents.find(x => x.id === eventId)!);
-    n = addNotice(n, {to: e.by, kind: 'group', go: 'groups', groupId: e.groupId, title: `${nameOf(s, s.me)} 님이 '${it.text}' 완료`, body: `${g?.name ?? ''} · ${e.title} ${p.done}/${p.all}`});
-  }
-  return n;
-};
-export const commentsOf = (s: State, eventId: string) => s.gcomments.filter(c => c.eventId === eventId);
-/** 댓글 — 일정 만든 사람과 항목 담당자에게 알린다. */
-export const addComment = (s: State, eventId: string, text: string): State => {
-  const e = s.gevents.find(x => x.id === eventId)!;
-  const n: State = {...s, gcomments: [...s.gcomments, {id: uid(), eventId, by: s.me, text, at: new Date().toISOString()}]};
-  const to = [...new Set([e.by, ...e.items.map(i => i.owner).filter((x): x is string => !!x)])].filter(x => x !== s.me);
-  return to.reduce((acc, t) => addNotice(acc, {to: t, kind: 'group', go: 'groups', groupId: e.groupId, title: `${nameOf(s, s.me)} 님이 댓글을 남겼습니다`, body: `${e.title} · ${text}`}), n);
-};
-export const postsOf = (s: State, groupId: string) => s.gposts.filter(p => p.groupId === groupId).slice().reverse();
-export const addPost = (s: State, groupId: string, text: string): State => {
-  const g = groupById(s, groupId)!;
-  const n: State = {...s, gposts: [...s.gposts, {id: uid(), groupId, by: s.me, text, at: new Date().toISOString()}]};
-  return toMembers(n, g, {kind: 'group', go: 'groups', groupId, title: `${g.name} 공지`, body: text});
-};
 
 /* ── 부서 ── */
 export const deptOf = (s: State, id?: string) => s.depts.find(d => d.id === id);
@@ -589,7 +483,7 @@ export const roleOf = (s: State, pid: string) => {
   return ser.length ? `${ser.join('·')} 관리자` : '';
 };
 
-/* ── 반복으로 보내는 부서·그룹 일정 ── */
+/* ── 반복으로 보내는 요청 ── */
 const AHEAD = 62; // 회차를 미리 만들어 두는 날 수
 /** 묶음마다 오늘부터 두 달 안의 회차가 다 있게 만든다. 앱을 열 때·보낼 때 부른다. */
 export function extendSeries(s: State): State {
@@ -601,9 +495,6 @@ export function extendSeries(s: State): State {
     for (const due of dates) {
       if (x.kind === 'dispatch' && x.dispatch) {
         n = {...n, dispatches: [...n.dispatches, {...x.dispatch, id: uid(), due, seriesId: x.id, sentAt: new Date().toISOString(), done: {}}]};
-      } else if (x.gevent) {
-        n = {...n, gevents: [...n.gevents, {id: uid(), groupId: x.gevent.groupId, title: x.gevent.title, due, by: x.by, seriesId: x.id,
-          items: x.gevent.items.map(i => ({id: uid(), ...i})), createdAt: new Date().toISOString()}]};
       }
     }
     n = {...n, series: n.series.map(y => (y.id === x.id ? {...y, made: to} : y))};
@@ -626,13 +517,6 @@ export function sendDispatchSeries(s: State, x: Pick<Dispatch, 'toDepts' | 'with
   }), n);
   return n;
 }
-/** 반복 그룹 일정 올리기 — 멤버에게 묶음으로 한 번 알린다. */
-export function addGroupEventSeries(s: State, groupId: string, title: string, items: {text: string; owner?: string}[], rule: Rule): State {
-  const g = groupById(s, groupId)!;
-  const sr: Series = {id: uid(), kind: 'gevent', rule, by: s.me, made: addDays(rule.anchor ?? today(), -1), gevent: {groupId, title, items}};
-  const n = extendSeries({...s, series: [...s.series, sr]});
-  return toMembers(n, g, {kind: 'group', go: 'groups', groupId, title: `${g.name}에 반복 일정이 올라왔습니다`, body: `${title} · ${ruleLabel(rule)}`}, [s.me]);
-}
 /** 반복 멈추기 — 오늘 뒤 회차 중 아무도 손대지 않은 것은 지우고, 더 만들지 않는다. */
 export function stopSeries(s: State, id: string): State {
   const day = today();
@@ -640,7 +524,6 @@ export function stopSeries(s: State, id: string): State {
     ...s,
     series: s.series.map(x => (x.id === id ? {...x, stopped: day} : x)),
     dispatches: s.dispatches.filter(d => !(d.seriesId === id && d.due > day && !Object.keys(d.done).length)),
-    gevents: s.gevents.filter(e => !(e.seriesId === id && e.due > day && !e.items.some(i => i.doneBy))),
   };
 }
 

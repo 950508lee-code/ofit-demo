@@ -9,12 +9,11 @@ import {usePlaceNav} from './placeNav';
 import {Pips} from './shapes';
 import type {CSSProperties} from 'react';
 
-export type Open = {kind: 'duty' | 'task'; id: string; date: string} | {kind: 'daily'; date: string} | {kind: 'unit'; id: string} | {kind: 'gevent'; id: string} | {kind: 'dispatch'; id: string} | null;
+export type Open = {kind: 'duty' | 'task'; id: string; date: string} | {kind: 'daily'; date: string} | {kind: 'unit'; id: string} | {kind: 'dispatch'; id: string} | null;
 export type Ctx = {s: State; setS: (s: State) => void; open: Open; setOpen: (o: Open) => void; toast: (m: string, undo?: State) => void};
 
 const isSel = (open: Open, r: Row) =>
-  !!open && (r.kind === 'gitem' ? open.kind === 'gevent' && open.id === r.ref
-    : r.kind === 'drecv' ? open.kind === 'dispatch' && open.id === r.id
+  !!open && (r.kind === 'drecv' ? open.kind === 'dispatch' && open.id === r.id
     : open.kind === r.kind && 'date' in open && open.date === r.date && (r.kind === 'daily' || ('id' in open && open.id === r.id)));
 
 /**
@@ -26,7 +25,7 @@ export function RowButton({r, open, setOpen, showDate, k, right, s}: {r: Row; op
   const pc = s && r.at ? ({'--pc': placeColor(s, r.at)} as CSSProperties) : undefined;
   const goPlace = usePlaceNav();
   const late = !r.done && !!r.date && r.date < day;
-  const pick = () => setOpen(r.kind === 'daily' ? {kind: 'daily', date: r.date || day} : r.kind === 'gitem' ? {kind: 'gevent', id: r.ref!} : r.kind === 'drecv' ? {kind: 'dispatch', id: r.id} : {kind: r.kind, id: r.id, date: r.date});
+  const pick = () => setOpen(r.kind === 'daily' ? {kind: 'daily', date: r.date || day} : r.kind === 'drecv' ? {kind: 'dispatch', id: r.id} : {kind: r.kind, id: r.id, date: r.date});
   return (
     <div className={`row${isSel(open, r) ? ' sel' : ''}`} data-k={k}>
       <span className={`dot${r.done ? ' done' : late ? ' late' : ''}`} />
@@ -140,14 +139,14 @@ export function InboxCards({s, setS, toast}: {s: State; setS: (s: State) => void
       {inboxOf(s).map(h => {
         const names = s.units.filter(x => h.unitIds.includes(x.id)).map(x => x.name).join(', ');
         const recs = h.unitIds.reduce((n, u) => n + recordsOfUnit(s, u).length, 0);
-        const extra = h.taskIds.length + (h.itemIds?.length ?? 0);
+        const extra = h.taskIds.length;
         const what = [names, extra && `일정 ${extra}개`, recs && `지난 기록 ${recs}건`].filter(Boolean).join(' · ');
         return (
           <div key={h.id} className="inbox">
             <p>{nameOf(s, h.from)} 님이 인수인계를 보냈습니다</p>
             <p className="what"><b>{what}</b></p>
             {h.note && <p className="q">{h.note}</p>}
-            <Upcoming s={s} unitIds={h.unitIds} taskIds={h.taskIds} itemIds={h.itemIds} heading="받으면 할 일에 이렇게 들어옵니다" />
+            <Upcoming s={s} unitIds={h.unitIds} taskIds={h.taskIds} heading="받으면 할 일에 이렇게 들어옵니다" />
             <div className="ib-act">
               <button className="ghost" onClick={() => { setS(declineHandover(s, h.id)); toast('거절했습니다'); }}>거절</button>
               <button className="ghost strong" onClick={() => { setS(acceptHandover(s, h.id)); toast('받았습니다. 할 일에 들어갔습니다'); }}>받기</button>
@@ -199,7 +198,7 @@ export function ReceivedCards({s, setS}: {s: State; setS: (s: State) => void}) {
     <>
       {list.map(h => {
         const units = s.units.filter(u => h.unitIds.includes(u.id));
-        const extra = h.taskIds.length + (h.itemIds?.length ?? 0);
+        const extra = h.taskIds.length;
         return (
           <div key={h.id} className="inbox got">
             <p>{nameOf(s, h.from)} 님에게서 받은 업무 · {dateLabel(h.date)}</p>
@@ -213,7 +212,7 @@ export function ReceivedCards({s, setS}: {s: State; setS: (s: State) => void}) {
                 </div>
               );
             })}
-            {extra > 0 && <p className="what">함께 받은 할 일·그룹 항목 {extra}개</p>}
+            {extra > 0 && <p className="what">함께 받은 할 일 {extra}개</p>}
             {h.note && <p className="q">{nameOf(s, h.from)} 님이 남긴 말 · {h.note}</p>}
             <div className="ib-act">
               <span className="hint">업무 이름을 누르면 전임자 기록과 처리 순서를 볼 수 있습니다</span>

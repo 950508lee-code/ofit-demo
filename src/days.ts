@@ -1,13 +1,13 @@
 // 날짜별 할 일 계산. 홈(주간 한 줄 달력·고른 날 목록), 달력, 알림 요약이 모두 이 파일을 쓴다.
 import {addDays, isBusiness, occurrences, ruleLabel, weekday} from './schedule';
-import {deptName, doneForMe, groupById, inWindow, myDispatches, myDuties, myDutiesEver, myItems, myTasks, myUnits, myWindow, seriesById, today, unitById, type State} from './store';
+import {deptName, doneForMe, inWindow, myDispatches, myDuties, myDutiesEver, myTasks, myUnits, myWindow, seriesById, today, unitById, type State} from './store';
 
 /**
  * 한 줄 = 무엇(title) · 어느 자리의 일(place) · 언제 오는가(when).
- * 자리는 업무·부서·그룹 이름. 없으면 내 일. 언제는 반복이면 리듬(매월 15일), 아니면 받은 사정.
- * gitem = 내가 담당인 그룹 항목(ref 는 그룹 일정 id). drecv = 다른 부서에서 받은 일정.
+ * 자리는 업무·부서 이름. 없으면 내 일. 언제는 반복이면 리듬(매월 15일), 아니면 받은 사정.
+ * drecv = 다른 부서에서 받은 요청.
  */
-export type Row = {kind: 'duty' | 'task' | 'daily' | 'gitem' | 'drecv'; id: string; date: string; title: string; done: boolean; time?: string; count?: {done: number; all: number}; place?: string; at?: {kind: 'unit' | 'dept' | 'group'; id: string}; when?: string; ref?: string};
+export type Row = {kind: 'duty' | 'task' | 'daily' | 'drecv'; id: string; date: string; title: string; done: boolean; time?: string; count?: {done: number; all: number}; place?: string; at?: {kind: 'unit' | 'dept'; id: string}; when?: string; ref?: string};
 
 const byTimeThenTitle = (a: Row, b: Row) => (a.time ?? '').localeCompare(b.time ?? '') || a.title.localeCompare(b.title);
 
@@ -29,10 +29,6 @@ export function itemsInRange(s: State, from: string, to: string): Map<string, Ro
   for (const t of myTasks(s)) {
     const dates = t.rule ? occurrences(t.rule, from, to).filter(x => !t.date || x >= t.date) : [t.date!].filter(x => x >= from && x <= to);
     for (const date of dates) put({kind: 'task', id: t.id, date, title: t.title, done: t.done.includes(date), time: t.time, when: t.rule ? ruleLabel(t.rule) : undefined});
-  }
-  for (const {e, i} of myItems(s)) {
-    if (e.due < from || e.due > to) continue;
-    put({kind: 'gitem', id: i.id, ref: e.id, date: e.due, title: i.text, done: !!i.doneBy, place: groupById(s, e.groupId)?.name, at: {kind: 'group', id: e.groupId}, when: `${seriesById(s, e.seriesId) ? `${ruleLabel(seriesById(s, e.seriesId)!.rule)} · ` : ''}${e.title} 항목`});
   }
   for (const d of myDispatches(s)) {
     if (d.due < from || d.due > to) continue;

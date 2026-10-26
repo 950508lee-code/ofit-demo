@@ -76,17 +76,6 @@ const scenes = [
     $('.compose').scrollTop = 9999; await wait(200);
     return check(txt('.rp-sum').startsWith('매월 5일'), '반복 부서 일정: ' + txt('.rp-sum'));`),
   s('d17c-dispatch-repeat-sent', `$('.modal .primary').click(); await wait(500); return check(toast().includes('반복(매월 5일)'), toast());`),
-  // 6. 그룹
-  s('d18-group', `$('.detail .x')?.click(); nav('그룹'); await wait(300); click('그룹 만들기'); await wait(150); setVal('.inline-form input', '연말 고객 안내 캠페인'); click('만들기'); await wait(400);
-    const code = $('.g-h .sub b').innerText;
-    await logoutTo('박공단'); nav('그룹'); await wait(300); click('코드로 참여'); await wait(150); setVal('.inline-form input', code); click('참여하기'); await wait(400);
-    await logoutTo('김건강'); nav('그룹'); await wait(300); click('연말 고객 안내 캠페인'); await wait(300); click('일정 만들기'); await wait(400);
-    setVal('.compose input', '안내 리플릿 배포'); setEl($('.compose input[type=date]'), '2026-10-30');
-    const add = () => $$('.compose .textbtn').find(b => b.innerText.includes('항목 더하기')).click(); add(); await wait(80);
-    const names = ['리플릿 시안 확정', '노원지사 배포'], owners = ['김건강', '박공단'];
-    $$('.compose .additem').forEach((r, i) => { setEl(r.querySelector('input'), names[i]); const o = [...r.querySelector('select').options].find(x => x.text === owners[i]); setEl(r.querySelector('select'), o.value); });
-    await wait(150); $('.modal .primary').click(); await wait(500);
-    return check(document.body.innerText.includes('안내 리플릿 배포'), '그룹 일정: 멤버 ' + txt('.g-h .sub'));`),
   // 7. 업무 표준: 박공단이 올림 → 경영지원 관리자 한경영 승인
   s('d19-std-propose', `await logoutTo('박공단'); who(); await wait(400); $$('.card .row').find(r => r.innerText.startsWith('예산·회계')).click(); await wait(500);
     click('반복업무 더하기'); await wait(200); setVal('.dline input', '매월 10일 예산 전용 신청 취합'); await wait(250);

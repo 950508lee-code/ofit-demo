@@ -1,6 +1,6 @@
 import {useLayoutEffect, useRef, useState} from 'react';
 import {
-  addGroupEvent, addGroupEventSeries, addTask, sendDispatchSeries, updateTask, deptName, emptyDepts, groupById, meOf, myGroups, nameOf, orgOf, recipientsOf, sendDispatch, today,
+  addTask, sendDispatchSeries, updateTask, deptName, emptyDepts, meOf, orgOf, recipientsOf, sendDispatch, today,
   unitsOfOrg, type State,
 } from '../store';
 import {Modal} from '../ui';
@@ -9,20 +9,18 @@ import {parseInput} from '../parse';
 import {ruleLabel, type Rule} from '../schedule';
 import {RepeatPicker, repeatFrom, ruleOf, type RepeatState} from './RepeatPicker';
 
-export type Target = 'me' | 'dept' | 'group';
-export type ComposePreset = {title?: string; date?: string; time?: string; rule?: Rule; target?: Target; groupId?: string; editId?: string};
+export type Target = 'me' | 'dept';
+export type ComposePreset = {title?: string; date?: string; time?: string; rule?: Rule; target?: Target; editId?: string};
 
 /**
  * 일정 등록 — 하나의 창에서 '누구에게'를 고른다.
  * 나: 내 할 일에만.
  * 부서: 받을 부서 + 받는 사람(부서 전체 / 특정 업무 담당자). 받는 사람의 홈·달력에 바로 들어간다.
- * 그룹: 체크리스트 항목과 담당을 정해 그룹 일정으로 올린다.
  */
 export function Compose({s, setS, preset, onClose, onDone}: {
   s: State; setS: (s: State) => void; preset: ComposePreset; onClose: () => void;
-  onDone: (msg: string, date: string, to?: {groupId?: string; sent?: boolean}) => void;
+  onDone: (msg: string, date: string, to?: {sent?: boolean}) => void;
 }) {
-  const groups = myGroups(s);
   const me = meOf(s)!;
   const [title, setTitle] = useState(preset.title ?? '');
   const [date, setDate] = useState(preset.date ?? today());
@@ -42,8 +40,6 @@ export function Compose({s, setS, preset, onClose, onDone}: {
     setTitle(p.title);
     setMoved(`제목에 쓴 ${got.join('·')}을 아래 칸으로 옮겼습니다`);
   };
-  const [gid, setGid] = useState(preset.groupId ?? groups[0]?.id ?? '');
-  const [items, setItems] = useState<{text: string; owner: string}[]>([{text: '', owner: ''}]);
   // 부서
   const [toDepts, setToDepts] = useState<string[]>([]);
   const [withChildren, setWithChildren] = useState(false);
@@ -55,7 +51,6 @@ export function Compose({s, setS, preset, onClose, onDone}: {
   const draft = {toDepts, withChildren, unitId: byUnit && unitId ? unitId : undefined, from: s.me};
   const recips = target === 'dept' ? recipientsOf(s, draft) : [];
   const empty = target === 'dept' ? emptyDepts(s, draft) : [];
-  const g = groupById(s, gid);
   // 닫을 때는 창이 작아지며 사라진 뒤 닫는다(PC 150ms, 폰 250ms, 움직임 줄이기 120ms)
   const [closing, setClosing] = useState(false);
   const close = () => {
@@ -72,7 +67,6 @@ export function Compose({s, setS, preset, onClose, onDone}: {
   const ok = !!title.trim() && !!date && (
     (repeat && !rule) ? false :
     (target === 'me') ||
-    (target === 'group' && g && items.some(i => i.text.trim())) ||
     (target === 'dept' && toDepts.length > 0 && (!byUnit || !!unitId))
   );
 
@@ -84,10 +78,6 @@ export function Compose({s, setS, preset, onClose, onDone}: {
     } else if (target === 'me') {
       setS(addTask(s, {title: title.trim(), date, time: time || undefined, rule}));
       onDone(rule ? '반복 할 일을 넣었습니다' : '할 일을 넣었습니다', date);
-    } else if (target === 'group') {
-      const list = items.filter(i => i.text.trim()).map(i => ({text: i.text.trim(), owner: i.owner || undefined}));
-      setS(rule ? addGroupEventSeries(s, gid, title.trim(), list, rule) : addGroupEvent(s, gid, title.trim(), date, list));
-      onDone(`${g!.name}에 ${rule ? `반복 일정(${ruleLabel(rule)})을` : '일정을'} 올렸습니다`, date, {groupId: gid});
     } else {
       const x = {toDepts, withChildren, unitId: draft.unitId, title: title.trim(), body: body.trim()};
       setS(rule ? sendDispatchSeries(s, x, rule) : sendDispatch(s, {...x, due: date}));
@@ -95,14 +85,13 @@ export function Compose({s, setS, preset, onClose, onDone}: {
     }
   };
 
-  const TARGETS: {id: Target; label: string; off?: boolean}[] = [
+  const TARGETS: {id: Target; label: string}[] = [
     {id: 'me', label: '나'},
     {id: 'dept', label: '부서'},
-    {id: 'group', label: '그룹', off: !groups.length},
   ];
 
   return (
-    <Modal title={preset.editId ? '할 일 고치기' : target === 'dept' ? '부서에 요청 보내기' : target === 'group' ? '그룹 일정 올리기' : '일정 등록'} onCancel={close} closing={closing}>
+    <Modal title={preset.editId ? '할 일 고치기' : target === 'dept' ? '부서에 요청 보내기' : '일정 등록'} onCancel={close} closing={closing}>
       <div className={`compose${more ? ' more' : ''}`} ref={box} onScroll={check}>
         <label className="fld"><span>제목</span>
           <input autoFocus value={title} onChange={e => { setTitle(e.target.value); setMoved(''); }} onBlur={pull}
@@ -113,16 +102,14 @@ export function Compose({s, setS, preset, onClose, onDone}: {
         {!preset.editId && <div className="fld"><span>누구에게</span>
           <div className="seg2" role="radiogroup" aria-label="누구에게">
             {TARGETS.map(t => (
-              <button key={t.id} role="radio" aria-checked={target === t.id} className={target === t.id ? 'on' : ''} disabled={t.off} onClick={() => setTarget(t.id)}>{t.label}</button>
+              <button key={t.id} role="radio" aria-checked={target === t.id} className={target === t.id ? 'on' : ''} onClick={() => setTarget(t.id)}>{t.label}</button>
             ))}
           </div>
-          {/* 셋이 어떻게 다른지 — 고르는 순간 한 줄로 */}
+          {/* 둘이 어떻게 다른지 — 고르는 순간 한 줄로 */}
           <small className="hint who-hint">{{
             me: '내 할 일에만 들어갑니다. 다른 사람은 보지 않습니다',
             dept: '다른 부서의 업무 담당자에게 일을 보내고 회신을 받습니다. 예) 지사별 실적 회신, 자료 제출 요청',
-            group: '부서·기관을 넘어 모인 사람들이 할 일을 나눠 맡고 함께 체크합니다. 예) 캠페인 준비, 합동 점검',
           }[target]}</small>
-          {target === 'group' && !groups.length && <small className="hint">그룹이 없습니다. 그룹 메뉴에서 만들거나 초대코드로 들어가세요.</small>}
         </div>}
         {preset.editId && preset.rule && <small className="hint">반복 할 일은 묶음 전체가 바뀝니다. 지난 완료 기록은 그대로 남습니다.</small>}
 
@@ -181,31 +168,10 @@ export function Compose({s, setS, preset, onClose, onDone}: {
           </>
         )}
 
-        {target === 'group' && g && (
-          <>
-            <label className="fld"><span>그룹</span>
-              <select value={gid} onChange={e => setGid(e.target.value)}>
-                {groups.map(x => <option key={x.id} value={x.id}>{x.name} · 멤버 {x.members.length}</option>)}
-              </select>
-            </label>
-            <div className="fld"><span>체크리스트</span>
-              {items.map((it, i) => (
-                <div key={i} className="additem">
-                  <input value={it.text} placeholder={`항목 ${i + 1}`} onChange={e => setItems(l => l.map((x, j) => (j === i ? {...x, text: e.target.value} : x)))} aria-label={`항목 ${i + 1}`} />
-                  <select value={it.owner} onChange={e => setItems(l => l.map((x, j) => (j === i ? {...x, owner: e.target.value} : x)))} aria-label="담당">
-                    <option value="">누구나</option>
-                    {g.members.map(m => <option key={m} value={m}>{nameOf(s, m)}</option>)}
-                  </select>
-                </div>
-              ))}
-              <button className="textbtn add" onClick={() => setItems(l => [...l, {text: '', owner: ''}])}>항목 더하기</button>
-            </div>
-          </>
-        )}
       </div>
       <div className="mb">
         <button className="ghost" onClick={close}>취소</button>
-        <button className="primary" disabled={!ok} onClick={submit}>{preset.editId ? '고치기' : target === 'me' ? '넣기' : target === 'dept' ? '보내기' : '올리기'}</button>
+        <button className="primary" disabled={!ok} onClick={submit}>{preset.editId ? '고치기' : target === 'me' ? '넣기' : '보내기'}</button>
       </div>
     </Modal>
   );

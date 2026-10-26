@@ -16,12 +16,11 @@ import {Calendar} from './views/Calendar';
 import {Notices} from './views/Notices';
 import {Me} from './views/Me';
 import type {WorkSub} from './views/Work';
-import {GroupEventCard, Groups} from './views/Groups';
 import {Compose, type ComposePreset} from './views/Compose';
 import {DispatchCard} from './views/Dispatch';
 import {dateLabel} from './schedule';
 
-type View = 'home' | 'calendar' | 'groups' | 'notices' | 'me';
+type View = 'home' | 'calendar' | 'notices' | 'me';
 
 export default function App() {
   const [s, setS] = useState<State>(loadState);
@@ -29,7 +28,6 @@ export default function App() {
   const [sel, setSel] = useState(today());
   const [workSub, setWorkSub] = useState<WorkSub>({kind: 'main'});
   const [open, setOpen] = useState<Open>(null);
-  const [gid, setGid] = useState<string | null>(null);
   const [compose, setCompose] = useState<ComposePreset | null>(null);
   // 알림 한 줄. 되돌릴 수 있는 일(완료)이면 바뀌기 전 상태를 함께 받아 '되돌리기'를 단다(5초).
   const [toastMsg, setToastMsg] = useState<{m: string; undo?: State; n: number} | null>(null);
@@ -78,10 +76,9 @@ export default function App() {
     setTimeout(() => { if (!done) { done = true; apply(); } }, 250);
   };
   const go = (v: View, then?: () => void) =>
-    swap(() => { setView(v); setOpen(null); setPlace(null); setWorkSub({kind: 'main'}); if (v !== 'groups') setGid(null); then?.(); }, v === view && !place);
-  // 이름표를 누르면 그 자리로. 그룹은 그룹 화면, 업무·부서는 자리 화면.
-  const goPlace = (p: Place) =>
-    p.kind === 'group' ? go('groups', () => setGid(p.id)) : swap(() => { setPlace(p); setOpen(null); });
+    swap(() => { setView(v); setOpen(null); setPlace(null); setWorkSub({kind: 'main'}); then?.(); }, v === view && !place);
+  // 이름표를 누르면 그 자리(업무·부서) 화면으로.
+  const goPlace = (p: Place) => swap(() => { setPlace(p); setOpen(null); });
 
   // 마감 알림: 창이 열려 있는 동안 30초마다 확인해 알림 내역에 쌓고, 허용돼 있으면 윈도우 알림도 띄운다.
   // 외부 서버가 필요 없어 업무망에서도 된다.
@@ -134,7 +131,6 @@ export default function App() {
       onEdit={() => setCompose({editId: t.id, target: 'me', title: t.title, date: t.rule ? (t.date ?? open.date) : open.date, time: t.time, rule: t.rule})} />;
   }
   if (open?.kind === 'dispatch') panel = <DispatchCard key={open.id} s={s} setS={setS} toast={setToast} onClose={onClose} id={open.id} />;
-  if (open?.kind === 'gevent') panel = <GroupEventCard key={open.id} s={s} setS={setS} onClose={onClose} id={open.id} />;
   if (open?.kind === 'unit') {
     const u = unitById(s, open.id)!;
     panel = <UnitPanel key={u.id} {...panelProps} unit={u} onGive={() => { setOpen(null); setView('me'); setWorkSub({kind: 'send', preselect: u.id}); }} />;
@@ -152,13 +148,11 @@ export default function App() {
   const ICON: Partial<Record<View, ReactNode>> = {
     home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9v11h14V9" /><path d="M10 20v-6h4v6" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
-    groups: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5" /><path d="M15.5 4.8a3.3 3.3 0 0 1 0 6.4M17.5 14.8c2.2.6 3.6 2.4 4 5.2" /></>,
     me: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="10" r="3" /><path d="M6.5 18.5c1.2-2 3.1-3 5.5-3s4.3 1 5.5 3" /></>,
   };
   const NAV: {id: View; label: string; count?: number; badge?: boolean; only?: 'd' | 'm'}[] = [
     {id: 'home', label: '홈', count: left},
     {id: 'calendar', label: '달력'},
-    {id: 'groups', label: '그룹'},
     {id: 'notices', label: '알림', count: unread, badge: true, only: 'd'},
     {id: 'me', label: '내 정보', only: 'm'},
   ];
@@ -200,9 +194,8 @@ export default function App() {
               onGive={() => go('me', () => setWorkSub({kind: 'send', preselect: place.id}))} />}
             {place?.kind === 'dept' && <DeptPlace {...ctx} id={place.id} onBack={() => swap(() => { setPlace(null); setOpen(null); })} />}
             {!place && view === 'home' && <Home onSettle={() => go('me', () => setWorkSub({kind: 'settle', mode: 'empty'}))} {...ctx} sel={sel} setSel={setSel} onCompose={p => setCompose({...p, target: 'me'})} />}
-            {!place && view === 'groups' && <Groups {...ctx} gid={gid} setGid={setGid} onCompose={g => setCompose({target: 'group', groupId: g, date: today()})} />}
             {!place && view === 'calendar' && <Calendar {...ctx} sel={sel} setSel={setSel} />}
-            {!place && view === 'notices' && <Notices s={s} setS={setS} onGo={n => go(n.go!, () => { if (n.go === 'home') setSel(today()); if (n.go === 'groups') setGid(n.groupId ?? null); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); })} />}
+            {!place && view === 'notices' && <Notices s={s} setS={setS} onGo={n => go(n.go!, () => { if (n.go === 'home') setSel(today()); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); })} />}
             {!place && view === 'me' && <Me onSwitch={n => { setS(n); setViewing(true); go('home'); setSel(today()); }} {...ctx} perm={perm} setPerm={setPerm} sub={workSub} setSub={setWorkSub} onHome={() => go('home', () => setSel(today()))} />}
             {panel && <div className={`pw${leaving ? ' out' : ''}`}>{panel}</div>}
           </div>
@@ -212,8 +205,7 @@ export default function App() {
         <Compose s={s} setS={setS} preset={compose} onClose={() => setCompose(null)}
           onDone={(msg, date, to) => {
             setCompose(null); setToast(msg);
-            if (to?.groupId) { setView('groups'); setGid(to.groupId); setOpen(null); }
-            else if (to?.sent) { setView('me'); setWorkSub({kind: 'main'}); setOpen(null); }
+            if (to?.sent) { setView('me'); setWorkSub({kind: 'main'}); setOpen(null); }
             else { setSel(date); }
           }} />
       )}

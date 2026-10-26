@@ -57,13 +57,12 @@ export type Dispatch = {
 };
 
 /**
- * 반복 묶음 — 부서 일정·그룹 일정을 반복으로 보낼 때. 회차는 다가오는 두 달치를 그때그때 보통 일정 한 건으로 만든다
+ * 반복 묶음 — 요청을 반복으로 보낼 때. 회차는 다가오는 두 달치를 그때그때 보통 일정 한 건으로 만든다
  * (받기·완료·현황은 한 번짜리와 똑같이 돈다). stopped 이면 더 만들지 않는다.
  */
 export type Series = {
-  id: string; kind: 'dispatch' | 'gevent'; rule: Rule; by: string; made: string; stopped?: string;
+  id: string; kind: 'dispatch'; rule: Rule; by: string; made: string; stopped?: string;
   dispatch?: Pick<Dispatch, 'from' | 'fromDept' | 'toDepts' | 'withChildren' | 'unitId' | 'title' | 'body'>;
-  gevent?: {groupId: string; title: string; items: {text: string; owner?: string}[]};
 };
 
 /** 빠른 입력으로 넣은 일. 인수인계 때 골라서 넘길 수 있다. */
@@ -75,22 +74,11 @@ export type Task = {id: string; owner: string; title: string; date?: string; tim
  * go 는 눌렀을 때 갈 곳.
  */
 export type Notice = {
-  id: string; to: string; kind: 'deadline' | 'handover' | 'dept' | 'group' | 'standard';
+  id: string; to: string; kind: 'deadline' | 'handover' | 'dept' | 'standard';
   title: string; body: string; at: string; read: boolean; key?: string;
-  go?: 'home' | 'me' | 'groups';
+  go?: 'home' | 'me';
   dispatchId?: string;
-  groupId?: string;
 };
-
-/**
- * 그룹 = 공동 프로젝트. 초대코드로 다른 부서·다른 조직 사람도 들어온다.
- * 그룹 일정은 마감이 있는 일 + 체크리스트 항목(담당·완료). 대화는 실시간 채팅 대신 일정 댓글과 공지로 남긴다.
- */
-export type Group = {id: string; name: string; code: string; members: string[]; admins: string[]; createdAt: string};
-export type GItem = {id: string; text: string; owner?: string; doneBy?: string; doneOn?: string};
-export type GEvent = {id: string; groupId: string; title: string; due: string; by: string; items: GItem[]; createdAt: string; seriesId?: string};
-export type GComment = {id: string; eventId: string; by: string; text: string; at: string};
-export type GPost = {id: string; groupId: string; by: string; text: string; at: string};
 
 /** 회차 기록 — 완료할 때 저절로 남는다. note 만 선택 입력. */
 export type Rec = {dutyId: string; date: string; by: string; note: string};
@@ -106,7 +94,7 @@ export type Ref = {id: string; org: OrgId; kind: 'link' | 'file'; title: string;
  * 받는 사람이 받아야 끝나고, 그 전엔 보낸 사람이 취소할 수 있다. 업무 고르기에서 이어받기는 바로 끝난다.
  */
 export type Handover = {
-  id: string; from: string; to: string; unitIds: string[]; taskIds: string[]; itemIds?: string[]; date: string; note: string;
+  id: string; from: string; to: string; unitIds: string[]; taskIds: string[]; date: string; note: string;
   state: 'pending' | 'accepted' | 'declined' | 'cancelled';
   seen?: boolean; // 받은 사람이 홈의 '받은 업무' 판을 확인함
   at?: string; // 보낸 시각(ISO) — 보낸 뒤 같은 업무를 다시 맡았는지 가릴 때
