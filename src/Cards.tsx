@@ -39,7 +39,7 @@ export function DutyCard({s, setS, toast, onClose, duty, date}: Props & {duty: D
   return (
     <aside className="detail" aria-label={duty.title}>
       <Head over={units} title={duty.title} sub={`${dateLabel(date)} · ${ruleLabel(duty.rule)}`} onClose={onClose} />
-      <p className="lockline">업무 표준에서 온 반복업무입니다. 이름·주기는 <button className="textbtn" onClick={() => goPlace({kind: 'unit', id: duty.unitIds[0]})}>{units} 업무 표준</button>에서 바꿉니다</p>
+      <p className="lockline">이름·주기는 <button className="textbtn" onClick={() => goPlace({kind: 'unit', id: duty.unitIds[0]})}>{units} 업무 표준</button>에서 바꿉니다</p>
 
       <section>
         <div className="sh">
@@ -50,7 +50,7 @@ export function DutyCard({s, setS, toast, onClose, duty, date}: Props & {duty: D
           <StepsEditor steps={steps} onCancel={() => setEditing(false)}
             onSave={st => { setS(editSteps(s, duty.id, st)); setEditing(false); toast('저장했습니다. 다음 담당자도 이 순서를 봅니다'); }} />
         ) : steps.length === 0 ? (
-          <p className="plain">아직 정리된 순서가 없습니다. 한 번 남겨 두면 다음 담당자도 봅니다.</p>
+          <p className="plain">적힌 순서가 없습니다</p>
         ) : (
           <ul className="checks">
             {steps.map((st, i) => st.warn ? (

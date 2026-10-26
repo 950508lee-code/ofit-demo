@@ -951,3 +951,28 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .seg2 button.on { background: var(--ink); color: var(--bg); }
 /* 시연용 안내 — 공개 주소에서 실제 기관 서비스로 오해하지 않게(2026-10-26 사용자 판정) */
 .demo-note { margin-bottom: 20px; padding: 10px 14px; border-radius: 10px; background: var(--chip); font-size: 14px; color: var(--sub); }
+
+/* ── 2026-10-26 사용자 판정: 화면 원칙 적용(nhisreminder 문서 21·25) ──
+   4. 칸마다 흰 판 대신 회색 바탕 위 흰 작업면 한 장. 칸 사이는 가는 선.
+   5. 달력 칩의 업무 색 옆줄을 뺀다(상태 없는 장식).
+   6. 경고색(빨강)을 뺀다. 지남은 마감이 분명한 일에만 '며칠 지남' 글자로, 굵기로 구분한다. */
+.list.me, .list.place { background: var(--bg); border-radius: 20px; padding: 4px 28px 20px; margin-top: 16px; }
+.list.me > .card, .list.place > .day, .list.place > .beat { background: none; border-radius: 0; margin: 0; padding: 20px 0 14px; border-top: 1px solid var(--line); }
+.list.me > .me-h + .card, .list.place > .place-h + * { border-top: 0; }
+.list.place > .place-h { background: none; border-radius: 0; margin: 0; padding: 22px 0 18px; border-bottom: 1px solid var(--line); }
+.list.place > .flow-back { margin: 16px 0 0; }
+.list.me > .me-h { margin: 0; padding: 22px 0 16px; border-bottom: 1px solid var(--line); }
+.wk .wdays { background: none; padding: 0; }
+.cell .ev span { padding-left: 6px; background: var(--chip); }
+.cell .ev span::before { display: none; }
+.cell .ev span.done { background: none; }
+.dot.late { border-color: var(--ink); }
+.row:has(.dot.late) .st { color: var(--ink); font-weight: 700; }
+.day h3.late, .wk .daylist .day h3.late { color: var(--ink); }
+.dueline.over .track i, .dueline.over .track b { background: var(--ink); }
+.dueline.over .ends small:nth-child(2) { color: var(--ink); font-weight: 700; }
+.notice.unread .k::after { background: var(--ink); }
+@media (max-width: 900px) { .list.me, .list.place { border-radius: 16px; padding: 0 16px 16px; } }
+.wk .wday .it { background: var(--bg); }
+.wk .wday:hover, .wk .wday.on { background: color-mix(in srgb, var(--ink) 6%, var(--canvas)); }
+.wk .wday.on .it { background: var(--bg); }

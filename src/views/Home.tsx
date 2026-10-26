@@ -98,7 +98,7 @@ export function Home({s, setS, open, setOpen, toast, sel, setSel, onCompose, onS
 
 /**
  * PC 이번 주 — 날마다 그날 할 일 제목을 세 줄까지(매일 하는 일은 빼고). 넘치면 +n.
- * 그날만의 일(한 번·매월·분기·매년)은 굵게, 매주는 보통. 끝낸 일은 흐리게 줄 긋고, 지난 날 못 한 일은 빨강.
+ * 그날만의 일(한 번·매월·분기·매년)은 굵게, 매주는 보통. 끝낸 일은 흐리게 줄 긋는다. 경고색은 쓰지 않는다.
  * 업무 색 옆줄은 쓰지 않는다(상태 없는 옆줄 강조선 금지, nhisreminder 문서 25). 자세한 것은 아래 고른 날 목록에서 본다.
  */
 function WeekFlow({s, days, sel, setSel, setOpen, dir}: Pick<Ctx, 's' | 'setOpen'> & {days: string[]; sel: string; setSel: (d: string) => void; dir: string}) {
@@ -109,7 +109,7 @@ function WeekFlow({s, days, sel, setSel, setOpen, dir}: Pick<Ctx, 's' | 'setOpen
       style={{gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))`}}>
       {shown.map(d => {
         const rows = rowsOn(s, d).filter(r => r.kind !== 'daily');
-        const past = d < day, more = rows.length - 3;
+        const more = rows.length - 3;
         return (
           <button key={d} className={`wday${d === day ? ' today' : ''}${d === sel ? ' on' : ''}${HOLIDAYS[d] || weekday(d) === 0 || weekday(d) === 6 ? ' off' : ''}`}
             onClick={() => { setSel(d); setOpen(null); }} aria-pressed={d === sel}
@@ -117,7 +117,7 @@ function WeekFlow({s, days, sel, setSel, setOpen, dir}: Pick<Ctx, 's' | 'setOpen
             <span className="wday-h"><small>{d === day ? '오늘' : WD[weekday(d)]}</small><b>{parse(d).getDate()}</b>{HOLIDAYS[d] && <em>{HOLIDAYS[d]}</em>}</span>
             <span className="wday-l" aria-hidden="true">
               {rows.slice(0, 3).map((r, i) => (
-                <span key={i} className={`it${r.when?.startsWith('매주') ? '' : ' sp'}${r.done ? ' done' : past ? ' late' : ''}`}>{r.title}</span>
+                <span key={i} className={`it${r.when?.startsWith('매주') ? '' : ' sp'}${r.done ? ' done' : ''}`}>{r.title}</span>
               ))}
               {more > 0 && <span className="more">+{more}</span>}
             </span>

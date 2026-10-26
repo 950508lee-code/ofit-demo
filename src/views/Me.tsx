@@ -16,7 +16,7 @@ export function Me({s, setS, open, setOpen, toast, perm, setPerm, onSwitch, sub,
 
 
   return (
-    <section className="list">
+    <section className="list me">
       <div className="me-h">
         <h2>{me.name}</h2>
         <p>{orgName(s, me.org)}{me.deptId ? ` · ${deptPath(s, me.deptId)}` : ''}</p>
@@ -24,9 +24,9 @@ export function Me({s, setS, open, setOpen, toast, perm, setPerm, onSwitch, sub,
 
       {work}
 
-      <div className="card">
+      {/* 보낸 요청이 없으면 칸을 두지 않는다 */}
+      {sentDispatches(s).length > 0 && <div className="card">
       <div className="sec-h"><h3 className="dept">보낸 요청</h3></div>
-      {sentDispatches(s).length === 0 && <p className="none">다른 부서에 보낸 요청이 없습니다</p>}
       {/* 반복으로 보낸 것은 묶음 하나로 — 다가오는 회차(없으면 마지막 회차)를 연다 */}
       {(() => {
         const day = today(), seen = new Set<string>();
@@ -50,7 +50,7 @@ export function Me({s, setS, open, setOpen, toast, perm, setPerm, onSwitch, sub,
           );
         });
       })()}
-      </div>
+      </div>}
 
       <div className="card">
       <div className="sec-h"><h3 className="dept">알림</h3></div>

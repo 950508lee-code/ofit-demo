@@ -72,7 +72,7 @@ export function UnitStandard({s, setS, toast, unitId}: {s: State; setS: (s: Stat
       )}
       {pending.map(p => <PropRow key={p.id} s={s} p={p} />)}
       {done.slice(0, 5).map(p => <PropRow key={p.id} s={s} p={p} />)}
-      {!open && props.length === 0 && <p className="none">이 업무의 반복업무를 바꾼 기록이 없습니다. 실제로 하는 일이 빠져 있으면 더해 주세요.</p>}
+      {!open && props.length === 0 && <p className="none">바꾼 기록이 없습니다</p>}
     </div>
   );
 }
@@ -141,7 +141,7 @@ export function StandardCard({s, setS, toast}: {s: State; setS: (s: State) => vo
       <>
       <div className="card">
         <div className="sec-h"><h3 className="dept">업무 표준 검토 {list.length}</h3><span className="scope">{scope}</span></div>
-        {list.length === 0 && <p className="none">검토할 것이 없습니다. 누가 업무나 반복업무를 올리면 여기에 쌓입니다.</p>}
+        {list.length === 0 && <p className="none">검토할 것이 없습니다</p>}
         {list.map(p => (
           <div key={p.id} className="review">
             <p className="rv-h"><b>{nameOf(s, p.by)}</b> 님 · {p.newUnit ? `새 업무 '${p.newUnit.name}'` : `${unitById(s, p.unitId!)?.name}에 더하기`} · {p.newUnit?.series ?? unitById(s, p.unitId!)?.series}</p>

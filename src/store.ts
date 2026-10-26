@@ -34,7 +34,7 @@ const seedUnit = (name: string) => SEED_UNITS.find(u => u.name === name)!.id;
 
 /**
  * 시연용 지난 기록: 김건강이 지난 3주 동안 맡은 일을 해 왔다고 채운다(메모 있는 기록은 SEED_RECORDS).
- * 기한 지난 일이 어떻게 보이는지 보이려고 가장 최근 회차 하나(누리집 공지 갱신)만 비워 둔다.
+ * 가장 최근 회차 하나(누리집 공지 갱신)는 비워 둔다. 반복업무라 기한 지난 일로 쌓이지 않고 달력에만 남는다.
  */
 function seedHistory(holds: string[]): Rec[] {
   const day = today(), from = addDays(day, -21), to = addDays(day, -1);

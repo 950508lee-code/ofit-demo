@@ -1,6 +1,6 @@
 import {addDays, HOLIDAYS, parse, weekday, ymd} from '../schedule';
 import {today} from '../store';
-import {dailyCount, itemsInRange, sundayOf} from '../days';
+import {itemsInRange, sundayOf} from '../days';
 import {useDirection, type Ctx} from './common';
 import {placeColor} from './placeColor';
 import type {CSSProperties} from 'react';
@@ -16,7 +16,6 @@ export function Calendar({s, setOpen, sel, setSel}: Ctx & {sel: string; setSel: 
   const weeks = cells[35] && parse(cells[35]).getMonth() !== month ? 5 : 6;
   const shown = cells.slice(0, weeks * 7);
   const items = itemsInRange(s, shown[0], shown[shown.length - 1]);
-  const daily = dailyCount(s);
   const day = today();
   const dir = useDirection(first);
   const moveMonth = (n: number) => {
@@ -64,7 +63,6 @@ export function Calendar({s, setOpen, sel, setSel}: Ctx & {sel: string; setSel: 
         })}
       </div>
       </div>
-      {daily > 0 && <p className="cal-note">매일 하는 일 {daily}개는 달력에 따로 적지 않습니다</p>}
     </section>
   );
 }

@@ -32,8 +32,7 @@ export function RepeatList({s, open, setOpen}: {s: State; open: Open; setOpen: (
           <button role="tab" aria-selected={tab === 'unit'} className={tab === 'unit' ? 'on' : ''} onClick={() => setTab('unit')}>업무에서 온 것 {fromUnit.length}</button>
         </div>
       </div>
-      {tab === 'mine' && mine.length === 0 && <p className="none">내가 만든 반복 할 일이 없습니다. 빠른 입력에 '매주 금요일 회의록 정리'처럼 쓰면 생깁니다.</p>}
-      {tab === 'unit' && <p className="hint lock">업무 표준에서 온 반복업무입니다. 이름·주기는 이름표를 눌러 그 업무의 '업무 표준'에서 바꿉니다.</p>}
+      {tab === 'mine' && mine.length === 0 && <p className="none">내가 만든 반복 할 일이 없습니다</p>}
       {list.map(r => <RowButton key={r.kind + r.id} s={s} r={r} open={open} setOpen={setOpen} right={r.kind === 'daily' ? '매일' : `다음 ${r.date.slice(5).replace('-', '.')}`} />)}
     </div>
   );

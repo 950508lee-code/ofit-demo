@@ -59,12 +59,16 @@ export function rowsOn(s: State, date: string): Row[] {
   return [...all.filter(r => !r.done), ...all.filter(r => r.done)];
 }
 
-/** 지난 두 주 동안 못 한 일(매일 하는 일 제외). */
+/**
+ * 마감이 분명한 일인가 — 받은 요청(기한을 정해 보낸 일)과 한 번 있는 내 할 일.
+ * 반복업무·반복 할 일은 완료 표시가 꼭 필요하지 않아서 지나면 다음 회차로 넘어가고, 기한 지난 일로 쌓지 않는다(2026-10-26 사용자 판정).
+ */
+export const hasDeadline = (r: Row) => r.kind === 'drecv' || (r.kind === 'task' && !r.when);
+
+/** 지난 두 주 동안 끝내지 않은, 마감이 분명한 일. */
 export function overdue(s: State, day = today()): Row[] {
   const from = addDays(day, -14), to = addDays(day, -1);
-  // 뺐거나 넘긴 업무의 못 한 회차는 더 이상 내 몫이 아니라 '기한 지난 일'로 조르지 않는다(달력 기록에는 남는다)
-  const ended = (r: Row) => r.kind === 'duty' && !!myWindow(s, s.duties.find(d => d.id === r.id)!).to;
-  return [...itemsInRange(s, from, to).values()].flat().filter(r => !r.done && !ended(r)).sort((a, b) => a.date.localeCompare(b.date));
+  return [...itemsInRange(s, from, to).values()].flat().filter(r => !r.done && hasDeadline(r)).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /** 메뉴 숫자: 오늘 남은 일 + 기한 지난 일. */

@@ -10,7 +10,7 @@ import {
 } from '../store';
 import type {Handover} from '../model';
 import {HandoverFlow} from '../Handover';
-import {UnitPicker, cycleSummary, dutiesOf} from '../ui';
+import {UnitPicker, dutiesOf} from '../ui';
 import type {Ctx} from './common';
 
 export type WorkSub = {kind: 'main'} | {kind: 'pick'} | {kind: 'send'; preselect?: string} | {kind: 'settle'; mode: 'move' | 'empty'};
@@ -98,7 +98,7 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome}: Ctx &
         const sel = open?.kind === 'unit' && open.id === u.id;
         return (
           <button key={u.id} className={`row${sel ? ' sel' : ''}`} onClick={() => goPlace({kind: 'unit', id: u.id})}>
-            <span className="t">{u.name}<small>반복업무 {dutiesOf(s, u).length}개 · {cycleSummary(dutiesOf(s, u))}</small></span>
+            <span className="t">{u.name}<small>반복업무 {dutiesOf(s, u).length}개</small></span>
             <span className="st">{p ? `${nameOf(s, p.to)} 님에게 인수인계 중` : next ? `다음 ${monthDay(next)}` : '매일'}</span>
           </button>
         );
@@ -112,7 +112,7 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome}: Ctx &
         <h3 className="dept">인수인계</h3>
         {(units.length > 0 || handoverableTasks(s).length > 0) && <button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'send'}); }}>인수인계 하기</button>}
       </div>
-      {sent.length === 0 && past.length === 0 && <p className="none">주고받은 인수인계가 없습니다. 받은 인수인계는 홈 맨 위에 뜹니다.</p>}
+      {sent.length === 0 && past.length === 0 && <p className="none">주고받은 인수인계가 없습니다</p>}
       {sent.map(h => (
         <div key={h.id} className="row static">
           <span className="t">{unitNames(h)}<small>{nameOf(s, h.to)} 님이 받기를 기다리는 중</small></span>
@@ -133,7 +133,6 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome}: Ctx &
           <h3 className="dept">업무 기준표 · {all.length}개</h3>
           <button className="textbtn" onClick={() => setMaking(true)}>업무 만들기</button>
         </div>
-        <p className="hint lock">조직의 모든 업무입니다. 눌러서 반복업무와 박자를 볼 수 있고, 빠진 일은 업무 표준에 올립니다.</p>
         {series.map(x => (
           <div key={x} className="std-series">
             <small>{x}</small>

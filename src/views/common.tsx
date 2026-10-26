@@ -2,7 +2,7 @@ import {useEffect, useLayoutEffect, useRef, useState, type RefObject} from 'reac
 import {addDays, dateLabel, monthDay, ruleLabel} from '../schedule';
 import {parseInput, type Parsed} from '../parse';
 import {acceptHandover, declineHandover, inboxOf, nameOf, occKey, receivedRecently, recordsOfUnit, seeHandover, today, type State} from '../store';
-import {itemsInRange, overdue, rowsOn, type Row} from '../days';
+import {hasDeadline, itemsInRange, overdue, rowsOn, type Row} from '../days';
 import {placeColor} from './placeColor';
 import {Upcoming} from '../Handover';
 import {usePlaceNav} from './placeNav';
@@ -16,6 +16,8 @@ const isSel = (open: Open, r: Row) =>
   !!open && (r.kind === 'drecv' ? open.kind === 'dispatch' && open.id === r.id
     : open.kind === r.kind && 'date' in open && open.date === r.date && (r.kind === 'daily' || ('id' in open && open.id === r.id)));
 
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+
 /**
  * 할 일 한 줄 — 제목 / 자리 이름표 / 리듬·사정. 오른쪽 끝은 상태(또는 right).
  * 줄을 누르면 상세, 이름표를 누르면 그 자리 화면.
@@ -24,7 +26,8 @@ export function RowButton({r, open, setOpen, showDate, k, right, s}: {r: Row; op
   const day = today();
   const pc = s && r.at ? ({'--pc': placeColor(s, r.at)} as CSSProperties) : undefined;
   const goPlace = usePlaceNav();
-  const late = !r.done && !!r.date && r.date < day;
+  // 지남 표시는 마감이 분명한 일에만(반복업무는 다음 회차로 넘어간다). 색이 아니라 '며칠 지남' 글자로 알린다
+  const late = !r.done && !!r.date && r.date < day && hasDeadline(r);
   const pick = () => setOpen(r.kind === 'daily' ? {kind: 'daily', date: r.date || day} : r.kind === 'drecv' ? {kind: 'dispatch', id: r.id} : {kind: r.kind, id: r.id, date: r.date});
   return (
     <div className={`row${isSel(open, r) ? ' sel' : ''}`} data-k={k}>
@@ -41,7 +44,7 @@ export function RowButton({r, open, setOpen, showDate, k, right, s}: {r: Row; op
           </span>
         )}
       </span>
-      <span className="st">{right ?? (r.kind === 'daily' ? '' : r.done ? '완료' : late ? '기한 지남' : r.time ?? '')}</span>
+      <span className="st">{right ?? (r.kind === 'daily' ? '' : r.done ? '완료' : late ? `${daysBetween(r.date, day)}일 지남` : r.time ?? '')}</span>
     </div>
   );
 }
@@ -215,7 +218,6 @@ export function ReceivedCards({s, setS}: {s: State; setS: (s: State) => void}) {
             {extra > 0 && <p className="what">함께 받은 할 일 {extra}개</p>}
             {h.note && <p className="q">{nameOf(s, h.from)} 님이 남긴 말 · {h.note}</p>}
             <div className="ib-act">
-              <span className="hint">업무 이름을 누르면 전임자 기록과 처리 순서를 볼 수 있습니다</span>
               <button className="ghost" onClick={() => setS(seeHandover(s, h.id))}>확인</button>
             </div>
           </div>

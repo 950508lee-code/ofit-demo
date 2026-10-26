@@ -88,7 +88,7 @@ export function UnitPlace({s, setS, open, setOpen, toast, id, onBack, onGive}: C
 
       <div className="day">
         <h3 className="dept">지난 기록 <span>{noted.length}</span></h3>
-        {recs.length === 0 && <p className="none">아직 남긴 기록이 없습니다. 완료할 때 한 줄 남기면 여기에 쌓입니다</p>}
+        {recs.length === 0 && <p className="none">남긴 기록이 없습니다</p>}
         {recs.map(r => (
           <div key={r.dutyId + r.date + r.by} className="rec">
             <span className="rd">{r.date.slice(2).replace(/-/g, '.')} · {nameOf(s, r.by)}</span>
