@@ -165,3 +165,10 @@ AI 없이 만드는 칸이 먼저 채워지고, AI 칸은 "제안"으로 구분�
 | 처리방법·주의 | 구현(주의는 `claude/writing-guide` 브랜치, 합치기 전) | 처리 순서는 업무에 붙어 있어 그대로 보임(지출결의 4단계). 비어 있던 순서는 비어 있음 |
 | 진행 중 현안 | 일부 | 다른 부서가 업무 담당자에게 보낸 요청은 자동으로 후임자에게 감. 전임자의 개인 현안은 인수인계에서 골라야 감. 사정(“조서가 아직 안 옴”)은 '남길 말'에만 |
 | 참고자료 | 미구현 | 반복업무의 '근거' 한 줄, 처리 순서의 '서식' 이름만. 파일·링크 연결 없음 |
+
+## 12. 공공 GitLab 제출 (2026-10-26)
+
+- 주소: https://gitlab.aigov.go.kr/ofit/ofit (main). 처음 올림 afbd063, 보안 검사(Gitleaks·Semgrep·OSV-Scanner·Trivy·Syft) 모두 통과.
+- 제출본은 GitHub `submit/gitlab` 브랜치다. 지난 기록 없이 시작해서 실제 공단 자료가 든 옛 커밋이 따라가지 않는다. **개발 브랜치를 통째로 GitLab에 올리지 않는다.**
+- 고친 것을 다시 올릴 때(PC Git Bash, `ofit-submit` 폴더): GitHub `submit/gitlab`에 같은 변경을 커밋 → `git pull --no-edit origin submit/gitlab` → `git push https://gitlab.aigov.go.kr/ofit/ofit.git submit/gitlab:main`.
+- GitLab은 올릴 때 보안 검사를 돌려 걸리면 거부한다. 첫 시도에서 점검 스크립트의 `http://127.0.0.1` 접속이 Semgrep에 걸려 크롬과 파이프로 주고받게 바꿨다.
