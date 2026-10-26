@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react';
 import {HEADER, buildCatalog, decode, parseCsv, toCsv, type Built} from './catalog';
 import type {OrgId} from './model';
 import {ruleLabel} from './schedule';
-import {initialState, login, newOrgId, orgName, registerOrg, signup, unitsOfOrg, type State, deptName, roleOf
+import {initialState, login, newOrgId, orgName, registerOrg, signup, unitsOfOrg, type State, deptName
 } from './store';
 import {UnitPicker, dutiesOf} from './ui';
 import {DeptBrowse} from './views/DeptPicker';
@@ -13,25 +13,32 @@ export function Login({s, setS}: {s: State; setS: (s: State) => void}) {
   const [mode, setMode] = useState<'home' | 'join' | 'org'>('home');
   if (mode === 'join') return <Signup s={s} setS={setS} onCancel={() => setMode('home')} />;
   if (mode === 'org') return <RegisterOrg s={s} onCancel={() => setMode('home')} onDone={n => { setS(n); setMode('home'); }} />;
+  // 시연 계정은 '이 계정으로 무엇을 보는지' 한 줄로. 김건강에서 시작하게 한다. 시연 중에 가입한 사람은 부서를 보인다.
+  const ROLE: Record<string, string> = {kim: '업무관리 · 인수인계', han: '반복업무 표준 검토', choi: '업무 표준 총괄 관리'};
+  const order = ['kim', 'han', 'choi'];
+  const people = [...s.people].sort((a, b) => (order.indexOf(a.id) + 1 || 99) - (order.indexOf(b.id) + 1 || 99));
   return (
-    <div className="flow">
-      <p className="demo-note">시연용 화면입니다. 사람·부서·업무 자료는 모두 지어낸 것입니다.</p>
-      <h1 className="logo" data-logo>OFIT</h1>
-      <p className="lead">업무를 고르면 반복업무가 저절로 들어옵니다</p>
-      {s.people.length > 0 && <p className="choices-label">가입한 사람</p>}
+    <div className="flow start-flow">
+      <h1 className="logo" data-logo>OFIT<span className="logo-ko">오핏</span></h1>
+      <p className="lead tag">담당자가 바뀌어도 업무는 이어집니다.</p>
+      {people.length > 0 && <p className="choices-label">시연 계정</p>}
       <div className="choices">
-        {s.people.map(p => (
-          <button key={p.id} className="choice" onClick={() => setS(login(s, p.id))}>
+        {people.map(p => (
+          <button key={p.id} className={`choice acct${p.id === 'kim' ? ' first' : ''}`} onClick={() => setS(login(s, p.id))}>
             <span>{p.name}</span>
-            <small>{[deptName(s, p.deptId) || orgName(s, p.org), roleOf(s, p.id)].filter(Boolean).join(' · ')}</small>
+            <small>{ROLE[p.id] ?? (deptName(s, p.deptId) || orgName(s, p.org))}</small>
+            {p.id === 'kim' && <em className="go">여기서 시작</em>}
           </button>
         ))}
       </div>
-      <div className="flow-foot">
-        <button className="primary wide" onClick={() => setMode('join')}>가입하기</button>
-        <button className="ghost wide" onClick={() => setMode('org')}>조직 등록하기</button>
-        <button className="textbtn reset" onClick={() => setS(initialState())}>처음 상태로 되돌리기</button>
+      <div className="start-acts">
+        <button className="ghost wide" onClick={() => setMode('join')}>새 직원으로 시작하기</button>
+        <button className="ghost wide" onClick={() => setMode('org')}>우리 기관 등록하기</button>
       </div>
+      <p className="start-foot">
+        <span>본 서비스는 시연용이며, 인물과 업무자료는 모두 가상입니다.</span>
+        <button className="textbtn" onClick={() => setS(initialState())}>처음 상태로 되돌리기</button>
+      </p>
     </div>
   );
 }

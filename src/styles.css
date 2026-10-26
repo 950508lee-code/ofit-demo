@@ -949,8 +949,6 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .seg2 { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg); justify-self: start; }
 .seg2 button { min-height: 40px; padding: 0 16px; border-radius: 9px; font-size: 15px; font-weight: 600; color: var(--sub); }
 .seg2 button.on { background: var(--ink); color: var(--bg); }
-/* 시연용 안내 — 공개 주소에서 실제 기관 서비스로 오해하지 않게(2026-10-26 사용자 판정) */
-.demo-note { margin-bottom: 20px; padding: 10px 14px; border-radius: 10px; background: var(--chip); font-size: 14px; color: var(--sub); }
 
 /* ── 2026-10-26 사용자 판정: 화면 원칙 적용(nhisreminder 문서 21·25) ──
    4. 칸마다 흰 판 대신 회색 바탕 위 흰 작업면 한 장. 칸 사이는 가는 선.
@@ -976,3 +974,17 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .wk .wday .it { background: var(--bg); }
 .wk .wday:hover, .wk .wday.on { background: color-mix(in srgb, var(--ink) 6%, var(--canvas)); }
 .wk .wday.on .it { background: var(--bg); }
+
+/* ── 시작 화면(2026-10-26 사용자 판정): 고민 없이 체험을 시작하게. 계정마다 볼 것 한 줄, 김건강에서 시작 ── */
+.start-flow .logo-ko { margin-left: 10px; font-size: .55em; font-weight: 600; color: var(--sub); letter-spacing: 0; }
+.start-flow .tag { margin-top: 10px; font-size: 18px; font-weight: 600; color: var(--ink); }
+.start-flow .choice.acct span { flex: none; width: 72px; }
+.start-flow .choice.acct small { flex: 1; font-size: 15px; font-weight: 500; }
+.start-flow .choice.acct.first small { color: var(--ink); }
+.start-flow .choice.acct .go { font-style: normal; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); }
+.start-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 28px; }
+.start-acts .ghost { height: 52px; font-size: 16px; font-weight: 700; }
+.start-foot { margin-top: auto; padding-top: 40px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: var(--sub); }
+.start-foot .textbtn { min-height: 0; padding: 0; font-size: 13px; text-decoration: underline; }
+@media (max-width: 600px) { .start-acts { grid-template-columns: 1fr; } .start-foot { flex-direction: column; align-items: flex-start; } }
+.start-acts .ghost { color: var(--ink); }

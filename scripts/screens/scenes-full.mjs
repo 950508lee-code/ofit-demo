@@ -13,7 +13,7 @@ const who = () => document.querySelector('button.who').click();
 const nav = t => [...document.querySelectorAll('.nav button')].find(b => b.innerText.startsWith(t)).click();
 const logoutTo = async n => { if (document.querySelector('button.who')) { who(); await wait(200); click('로그아웃'); await wait(300); } click(n); await wait(700); };
 const signupAs = async (name, dept, unit) => {
-  click('가입하기'); await wait(200); setVal('input', name); await wait(100); click('다음'); await wait(200); click('국민건강보험공단'); await wait(300);
+  click('새 직원으로 시작하기'); await wait(200); setVal('input', name); await wait(100); click('다음'); await wait(200); click('국민건강보험공단'); await wait(300);
   setVal('.search', dept); await wait(200); [...document.querySelectorAll('.choice')].find(b => b.innerText.includes(dept)).click(); await wait(300);
   setVal('.search', unit); await wait(200); [...document.querySelectorAll('label.choice')].find(l => l.innerText.startsWith(unit)).click(); await wait(100);
   click('1개 고르기'); await wait(2400); click('시작하기'); await wait(600);
@@ -27,7 +27,7 @@ const s = (name, js, o = {}) => ({name, js: H + js, ...o});
 const scenes = [
   {name: 'a00', url: U, loadWait: 1500},
   s('a01-login', `localStorage.clear(); location.reload(); return 1;`, {wait: 3800}),
-  s('a02-name', `click('가입하기'); await wait(200); setVal('input', '박공단'); return 1;`),
+  s('a02-name', `click('새 직원으로 시작하기'); await wait(200); setVal('input', '박공단'); return 1;`),
   s('a03-org', `click('다음'); return 1;`),
   s('a04-dept', `click('국민건강보험공단'); await wait(300); setVal('.search', '노원'); return 1;`),
   s('a05-units', `[...document.querySelectorAll('.choice')].find(b => b.innerText.includes('노원지사')).click(); await wait(300); setVal('.search', '예산'); await wait(200); [...document.querySelectorAll('label.choice')][0].click(); return 1;`),
