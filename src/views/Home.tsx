@@ -23,14 +23,18 @@ export function Home({s, setS, open, setOpen, toast, sel, setSel, onCompose, onS
     ? `${d0.getFullYear()}년 ${d0.getMonth() + 1}월`
     : `${d0.getMonth() + 1}월 · ${d6.getMonth() + 1}월`;
   const day = today();
-  // 업무분장을 고르고 일정이 채워진 직후: 이번 주 칸 → 칸 안 할 일 → 오늘 할 일 줄을 차례로 띄운다(하나 240ms, 튕김 없음)
+  // 업무분장을 고르고 일정이 채워진 직후: 흰 막이 걷히는 동안 화면 묶음(이번 주 · 오늘 할 일 · 빠른 입력)이 차례로 올라오고,
+  // 이번 주 칸에 할 일 점이 찍힌다. 낱낱의 줄이 아니라 묶음 단위로 움직여 빈 판이 먼저 보이지 않게 한다
   useEffect(() => {
     if (!arrival.pending) return;
     arrival.pending = false;
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const els = [...document.querySelectorAll<HTMLElement>('.main .wday, .main .week .wd, .main .wday .it, .main .daylist .row, .main .daylist .day > h3, .main .quick')];
-    els.forEach((el, i) => el.animate(calm ? [{opacity: 0}, {opacity: 1}] : [{opacity: 0, transform: 'translateY(10px)'}, {opacity: 1, transform: 'none'}],
-      {duration: 240, delay: 120 + i * 45, easing: 'cubic-bezier(.2,0,0,1)', fill: 'backwards'}));
+    const blocks = [...document.querySelectorAll<HTMLElement>('.main section.list > *')];
+    blocks.forEach((el, i) => el.animate(calm ? [{opacity: 0}, {opacity: 1}] : [{opacity: 0, transform: 'translateY(12px)'}, {opacity: 1, transform: 'none'}],
+      {duration: 320, delay: 120 + i * 80, easing: 'cubic-bezier(.2,0,0,1)', fill: 'backwards'}));
+    if (calm) return;
+    [...document.querySelectorAll<HTMLElement>('.main .wd i.has')].forEach((el, i) => el.animate([{opacity: 0, transform: 'scale(.3)'}, {opacity: 1, transform: 'none'}],
+      {duration: 220, delay: 420 + i * 50, easing: 'cubic-bezier(.2,0,0,1)', fill: 'backwards'}));
   }, []);
   const dir = useDirection(start);
   const wide = useWide();

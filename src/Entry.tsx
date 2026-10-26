@@ -71,7 +71,7 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
   if (step === 'name') {
     const ok = name.trim() && !taken;
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         <button className="textbtn close" onClick={onCancel}>취소</button>
         <h1>조직 이름을 입력해 주세요</h1>
         <input className="search big" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="조직 이름" aria-label="조직 이름"
@@ -91,7 +91,7 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
       setStep('check');
     };
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         <button className="textbtn close" onClick={() => setStep('name')}>이전</button>
         <h1>업무 기준표를 올려 주세요</h1>
         <p className="lead">네 칸짜리 표 하나면 됩니다. 엑셀은 CSV로 저장해서 올려 주세요.</p>
@@ -120,7 +120,7 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
   const b = built!;
   const ok = b.units.length > 0;
   return (
-    <div className="flow">
+    <div className="flow" key={step}>
       <button className="textbtn close" onClick={() => setStep('file')}>다른 파일 올리기</button>
       <h1>{name.trim()}</h1>
       <p className="lead">{fileName}</p>
@@ -161,7 +161,7 @@ function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCanc
 
   if (step === 'name') {
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         <button className="textbtn close" onClick={onCancel}>취소</button>
         <p className="signup-step">회원가입 1/3</p>
         <h1>이름을 입력해 주세요</h1>
@@ -176,7 +176,7 @@ function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCanc
 
   if (step === 'org') {
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         <button className="textbtn close" onClick={() => setStep('name')}>이전</button>
         <h1>어느 조직에서 일하나요?</h1>
         <p className="lead">조직을 고르면 그 조직의 업무가 나옵니다</p>
@@ -194,7 +194,7 @@ function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCanc
 
   if (step === 'dept') {
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         <button className="textbtn close" onClick={() => setStep(only ? 'name' : 'org')}>이전</button>
         <p className="signup-step">회원가입 2/3</p>
         <h1>어느 부서에서 일하나요?</h1>
@@ -230,7 +230,23 @@ export function Filling({s, units, onStart}: {s: State; units: string[]; onStart
   const step = Math.max(100, Math.min(250, 1200 / Math.max(duties.length, 1)));
   const [shown, setShown] = useState(0);
   const started = useRef(false);
-  const go = () => { if (started.current) return; started.current = true; arrival.pending = true; onStart(); };
+  const root = useRef<HTMLDivElement>(null);
+  // 나갈 때: 글자와 선이 먼저 걷히고(200ms) → 흰 막 아래에서 다음 화면으로 바뀐 뒤 막이 걷힌다(360ms). 화면이 툭 바뀌지 않게
+  const go = () => {
+    if (started.current) return;
+    started.current = true;
+    arrival.pending = true;
+    const el = root.current;
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) { onStart(); return; }
+    [...el.children].forEach(c => c.animate([{opacity: 1}, {opacity: 0, transform: 'translateY(-8px)'}], {duration: 200, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards'}));
+    setTimeout(() => {
+      const veil = document.createElement('div');
+      veil.className = 'veil';
+      document.body.append(veil);
+      onStart();
+      veil.animate([{opacity: 1}, {opacity: 0}], {duration: 360, delay: 40, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards'}).finished.then(() => veil.remove(), () => veil.remove());
+    }, 200);
+  };
   useEffect(() => {
     if (shown >= duties.length) { const t = setTimeout(go, 1300); return () => clearTimeout(t); }
     const t = setTimeout(() => setShown(n => n + 1), shown === 0 ? 400 : step);
@@ -238,7 +254,7 @@ export function Filling({s, units, onStart}: {s: State; units: string[]; onStart
   }, [shown, duties.length, step]);
   const done = shown >= duties.length;
   return (
-    <div className={`flow fill2${done ? ' done' : ''}`} onClick={() => done && go()}>
+    <div ref={root} className={`flow fill2${done ? ' done' : ''}`} onClick={() => done && go()}>
       <div className="fl-word" aria-live="polite">
         {done
           ? <h1 key="done" className="fl-in">반복업무 {duties.length}개를<br />일정에 넣었습니다</h1>

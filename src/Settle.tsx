@@ -43,7 +43,7 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
   if (step === 'sort') {
     const ok = holding.every(u => plan[u.id]);
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         {head('지금 맡은 업무를 정리하세요', `${deptName(s, me.deptId)}에 두고 갈 업무입니다. 이어받을 사람에게 인수인계하거나, 이어받을 사람이 없으면 뺍니다`)}
         {holding.map(u => (
           <div key={u.id} className="choice sort-row">
@@ -78,7 +78,7 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
   // 1. 새 부서
   if (step === 'dept') {
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         {head('어느 부서로 가나요', `지금 ${deptPath(s, me.deptId)}`)}
         <DeptBrowse s={s} org={me.org} onPick={id => { setS(moveDept(s, id)); setStep('inbox'); }}
           onCreate={(n, id) => { setS(moveDept(n, id)); setStep('inbox'); }} />
@@ -90,7 +90,7 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
   if (step === 'inbox') {
     const inbox = inboxOf(s);
     return (
-      <div className="flow">
+      <div className="flow" key={step}>
         {head('먼저 받을 인수인계', inbox.length ? '전임자가 보낸 업무입니다. 받으면 반복업무와 지난 기록이 그대로 이어집니다' : `${deptName(s, me.deptId)}에서 나에게 온 인수인계가 없습니다. 업무 고르기로 갑니다`)}
         <InboxCards s={s} setS={setS} toast={toast} />
         {received.length > 0 && <p className="what settle-got">받은 업무 · {s.units.filter(u => received.includes(u.id)).map(u => u.name).join(', ')}</p>}
