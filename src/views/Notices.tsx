@@ -110,15 +110,22 @@ export function NoticeTicker({s, onOpen}: {s: State; onOpen: () => void}) {
   return (
     <div className="tk" onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)}>
       <button className="tk-main" onClick={onOpen} onFocus={() => setHold(true)} onBlur={() => setHold(false)}
-        aria-label={`알림 열기. ${items.map(x => `${x.k} ${x.t}`).join(', ')}`}>
-        <span className="tk-k">알림{act.length > 0 && <b> 처리할 것 {act.length}</b>}</span>
+        aria-label={`알림 열기.${act.length ? ` 처리할 것 ${act.length}개.` : ''} ${items.map(x => `${x.k} ${x.t}`).join(', ')}`}>
+        <span className="tk-k" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>
+          {act.length > 0 && <em>{act.length}</em>}
+        </span>
         <span className="tk-win" aria-hidden="true">
-          {prev >= 0 && items[prev % n] && <span key={`o${items[prev % n].key}${i}`} className="tk-it out"><small>{items[prev % n].k}</small><b className={items[prev % n].strong ? 'on' : ''}>{items[prev % n].t}</b><span>{items[prev % n].sub}</span></span>}
-          <span key={cur.key + i} className={`tk-it${prev >= 0 ? ' in' : ''}`}><small>{cur.k}</small><b className={cur.strong ? 'on' : ''}>{cur.t}</b><span>{cur.sub}</span></span>
+          {prev >= 0 && items[prev % n] && <span key={`o${items[prev % n].key}${i}`} className="tk-it out"><b className={items[prev % n].strong ? 'on' : ''}>{items[prev % n].t}</b><span>{items[prev % n].sub}</span></span>}
+          <span key={cur.key + i} className={`tk-it${prev >= 0 ? ' in' : ''}`}><b className={cur.strong ? 'on' : ''}>{cur.t}</b><span>{cur.sub}</span></span>
         </span>
         {n > 1 && <span className="tk-n" aria-hidden="true">{(i % n) + 1} / {n}</span>}
       </button>
-      {n > 1 && <button className="textbtn tk-stop" onClick={() => setStop(x => !x)} aria-pressed={stop}>{stop ? '넘기기' : '멈춤'}</button>}
+      {n > 1 && (
+        <button className="tk-stop" onClick={() => setStop(x => !x)} aria-pressed={stop} aria-label={stop ? '다시 넘기기' : '멈춤'} title={stop ? '다시 넘기기' : '멈춤'}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">{stop ? <path d="M8 6l10 6-10 6z" /> : <><path d="M9 6v12" /><path d="M15 6v12" /></>}</svg>
+        </button>
+      )}
     </div>
   );
 }

@@ -1218,20 +1218,22 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .hello p { margin: 4px 0 0; font-size: 15px; color: var(--sub); }
 .tk { display: flex; align-items: center; gap: 12px; margin: 0 0 4px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .tk-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; min-height: 44px; padding: 0; text-align: left; font-size: 14px; color: var(--ink); }
-.tk-k { flex: none; font-size: 13px; font-weight: 700; color: var(--sub); }
-.tk-k b { color: var(--ink); }
+.tk-k { position: relative; flex: none; display: grid; place-items: center; width: 24px; height: 24px; color: var(--ink); }
+.tk-k svg, .tk-stop svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.tk-k em { position: absolute; top: -5px; right: -8px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--ink); color: var(--bg); font-style: normal; font-size: 10.5px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--canvas); }
 .tk-win { position: relative; flex: 1; min-width: 0; height: 22px; overflow: hidden; white-space: nowrap; }
 .tk-it { position: absolute; inset: 0; display: flex; align-items: baseline; gap: 8px; overflow: hidden; text-overflow: ellipsis; }
 .tk-it.in { animation: tk-in 300ms cubic-bezier(.2,0,0,1) both; }
 .tk-it.out { animation: tk-out 300ms cubic-bezier(.2,0,0,1) both; }
 @keyframes tk-in { from { transform: translateY(100%); opacity: 0; } }
 @keyframes tk-out { to { transform: translateY(-100%); opacity: 0; } }
-.tk-it small { flex: none; font-size: 12.5px; color: var(--sub); }
 .tk-it b { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; } .tk-it b.on { font-weight: 700; }
 .tk-it > span { flex: none; font-size: 13px; color: var(--sub); }
 .tk-n { flex: none; font-size: 12.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .tk-it.in { animation: fade-in 200ms ease-out both; } .tk-it.out { display: none; } }
-.tk-stop { flex: none; min-height: 44px; padding: 0 2px; font-size: 13px; color: var(--sub); text-decoration: underline; text-underline-offset: 3px; }
+.tk-stop { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin-right: -12px; color: var(--sub); }
+.tk-stop:hover { color: var(--ink); }
+.tk-stop svg { width: 16px; height: 16px; stroke-width: 2; }
 @media (max-width: 900px) { .hello { margin-top: 8px; } .hello h1 { font-size: 22px; } .tk { margin-bottom: 12px; } }
 
 /* 가입·자리 잡기 단계 넘김: 새 단계의 글과 칸이 아래에서 차례로 올라온다(260ms, 40ms 간격). 시작 화면은 스플래시가 맡는다 */
