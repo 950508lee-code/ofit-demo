@@ -11,12 +11,8 @@ import {deptPath} from './store';
 
 /** 첫 화면 — 가입한 사람으로 들어가기, 가입하기, 조직 등록하기. */
 export function Login({s, setS}: {s: State; setS: (s: State) => void}) {
-  const [mode, setMode] = useState<'home' | 'join' | 'org' | 'demo'>('home');
-  // 시연 첫 장면: 노원지사 새 직원 박공단으로 업무분장 고르기부터(이름·조직·부서는 채워 둔다). 박공단이 가입하고 나면 보통 계정 줄로 바뀐다
-  const nw = s.depts.find(d => d.name === '노원지사');
-  const fresh = nw && !s.people.some(p => p.name === '박공단') ? {name: '박공단', org: nw.org, deptId: nw.id} : null;
+  const [mode, setMode] = useState<'home' | 'join' | 'org'>('home');
   if (mode === 'join') return <Signup s={s} setS={setS} onCancel={() => setMode('home')} />;
-  if (mode === 'demo' && fresh) return <Signup s={s} setS={setS} preset={fresh} onCancel={() => setMode('home')} />;
   if (mode === 'org') return <RegisterOrg s={s} onCancel={() => setMode('home')} onDone={n => { setS(n); setMode('home'); }} />;
   // 시연 계정은 '이 계정으로 무엇을 보는지' 한 줄로. 김건강에서 시작하게 한다. 시연 중에 가입한 사람은 부서를 보인다.
   const ROLE: Record<string, string> = {kim: '업무관리 · 인수인계', han: '반복업무 표준 검토', choi: '업무 표준 총괄 관리'};
@@ -26,25 +22,24 @@ export function Login({s, setS}: {s: State; setS: (s: State) => void}) {
     <div className="flow start-flow">
       <h1 className="logo" data-logo>OFIT<span className="logo-ko">오핏</span></h1>
       <p className="lead tag">담당자가 바뀌어도 업무는 이어집니다.</p>
-      {people.length > 0 && <p className="choices-label">시연 계정</p>}
+      {/* 시연은 회원가입부터(2026-10-26 사용자 요청): 이름 → 소속 부서 → 업무분장 → 주기업무가 일정에 들어감 → 홈 */}
+      <div className="choices start-join">
+        <button className="choice acct first" onClick={() => setMode('join')}>
+          <span>새 직원으로 시작하기</span>
+          <small>회원가입 · 업무분장 고르기</small>
+          <em className="go">여기서 시작</em>
+        </button>
+      </div>
+      {people.length > 0 && <p className="choices-label">이미 가입한 사람으로 보기</p>}
       <div className="choices">
-        {fresh && (
-          <button className="choice acct first" onClick={() => setMode('demo')}>
-            <span>{fresh.name}</span>
-            <small>노원지사 새 직원 · 업무분장부터</small>
-            <em className="go">여기서 시작</em>
-          </button>
-        )}
         {people.map(p => (
-          <button key={p.id} className={`choice acct${p.id === 'kim' && !fresh ? ' first' : ''}`} onClick={() => setS(login(s, p.id))}>
+          <button key={p.id} className="choice acct" onClick={() => setS(login(s, p.id))}>
             <span>{p.name}</span>
             <small>{ROLE[p.id] ?? (deptName(s, p.deptId) || orgName(s, p.org))}</small>
-            {p.id === 'kim' && !fresh && <em className="go">여기서 시작</em>}
           </button>
         ))}
       </div>
       <div className="start-acts">
-        <button className="ghost wide" onClick={() => setMode('join')}>새 직원으로 시작하기</button>
         <button className="ghost wide" onClick={() => setMode('org')}>우리 기관 등록하기</button>
       </div>
       <p className="start-foot">
@@ -154,22 +149,26 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
 }
 
 /** 가입 — 이름 → 조직 → 업무 여러 개 → 반복일정이 들어간다. */
-function Signup({s, setS, onCancel, preset}: {s: State; setS: (s: State) => void; onCancel: () => void; preset?: {name: string; org: OrgId; deptId: string}}) {
-  const [step, setStep] = useState<'name' | 'org' | 'dept' | 'units' | 'done'>(preset ? 'units' : 'name');
-  const [deptId, setDeptId] = useState(preset?.deptId ?? '');
-  const [name, setName] = useState(preset?.name ?? '');
-  const [org, setOrg] = useState<OrgId | null>(preset?.org ?? null);
+function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCancel: () => void}) {
+  const [step, setStep] = useState<'name' | 'org' | 'dept' | 'units' | 'done'>('name');
+  const [deptId, setDeptId] = useState('');
+  const [name, setName] = useState('');
+  // 조직이 하나뿐이면 고르는 화면을 건너뛴다(회원가입 3단계: 이름 · 소속 부서 · 업무분장)
+  const only = s.orgs.length === 1 ? s.orgs[0].id : null;
+  const [org, setOrg] = useState<OrgId | null>(only);
+  const afterName = () => setStep(only ? 'dept' : 'org');
   const [picked, setPicked] = useState<string[]>([]);
 
   if (step === 'name') {
     return (
       <div className="flow">
         <button className="textbtn close" onClick={onCancel}>취소</button>
+        <p className="signup-step">회원가입 1/3</p>
         <h1>이름을 입력해 주세요</h1>
         <input className="search big" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="이름" aria-label="이름"
-          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && name.trim()) setStep('org'); }} />
+          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && name.trim()) afterName(); }} />
         <div className="flow-foot">
-          <button className="primary wide" disabled={!name.trim()} onClick={() => setStep('org')}>다음</button>
+          <button className="primary wide" disabled={!name.trim()} onClick={afterName}>다음</button>
         </div>
       </div>
     );
@@ -196,7 +195,8 @@ function Signup({s, setS, onCancel, preset}: {s: State; setS: (s: State) => void
   if (step === 'dept') {
     return (
       <div className="flow">
-        <button className="textbtn close" onClick={() => setStep('org')}>이전</button>
+        <button className="textbtn close" onClick={() => setStep(only ? 'name' : 'org')}>이전</button>
+        <p className="signup-step">회원가입 2/3</p>
         <h1>어느 부서에서 일하나요?</h1>
         <p className="lead">{orgName(s, org!)} 조직표에서 고르세요. 없으면 그 자리에 만들 수 있습니다</p>
         <DeptBrowse s={s} org={org!} onPick={id => { setDeptId(id); setStep('units'); }}
@@ -207,8 +207,8 @@ function Signup({s, setS, onCancel, preset}: {s: State; setS: (s: State) => void
 
   if (step === 'units') {
     return (
-      <UnitPicker s={s} org={org!} title="맡은 업무를 모두 고르세요" lead={`${deptPath(s, deptId)} · 여러 개 고를 수 있습니다`}
-        doneLabel="고르기" back={preset ? {label: '처음으로', onClick: onCancel} : {label: '이전', onClick: () => setStep('dept')}}
+      <UnitPicker s={s} org={org!} title="맡은 업무를 모두 고르세요" lead={`회원가입 3/3 · ${deptPath(s, deptId)} · 여러 개 고를 수 있습니다`}
+        doneLabel="고르기" back={{label: '이전', onClick: () => setStep('dept')}}
         onDone={ids => { setPicked(ids); setStep('done'); }} />
     );
   }

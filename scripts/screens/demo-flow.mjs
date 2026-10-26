@@ -39,8 +39,8 @@ const scenes = [
   s('d02-login', `await wait(3000); return check($$('button').some(b => b.innerText.includes('여기서 시작')), '로그인: ' + $$('.choices .choice').map(b => b.innerText.split(String.fromCharCode(10)).join(' ')).join(' | '));`),
   // 2. 가입
   s('d03-signup-name', `click('새 직원으로 시작하기'); await wait(250); setVal('input', '박공단'); return 1;`),
-  s('d04-signup-org', `click('다음'); await wait(300); return check($$('button').some(b => b.innerText.includes('국민건강보험공단')), '조직 고르기');`),
-  s('d05-signup-dept', `click('국민건강보험공단'); await wait(300); setVal('.search', '노원'); await wait(250); return check($$('.choice').some(b => b.innerText.includes('노원지사')), '부서 찾기: 노원지사');`),
+  s('d04-signup-org', `click('다음'); await wait(300); if ($$('.choice').some(b => b.innerText.startsWith('국민건강보험공단'))) if ($$('.choice').some(b => b.innerText.startsWith('국민건강보험공단'))) click('국민건강보험공단'); await wait(300); return check(!!$('.search') && txt('.signup-step') === '회원가입 2/3', '소속 부서 고르기(조직이 하나면 조직 화면 건너뜀): ' + txt('.signup-step'));`),
+  s('d05-signup-dept', `setVal('.search', '노원'); await wait(250); return check($$('.choice').some(b => b.innerText.includes('노원지사')), '부서 찾기: 노원지사');`),
   s('d06-signup-units', `$$('.choice').find(b => b.innerText.includes('노원지사')).click(); await wait(350);
     for (const u of ['예산·회계', '인사·복무']) $$('label.choice').find(l => l.innerText.startsWith(u)).click();
     await wait(200); return check($('.flow-foot .primary')?.innerText.includes('2개'), '업무 2개 고름: ' + $('.flow-foot .primary')?.innerText);`),
@@ -93,7 +93,7 @@ const scenes = [
   s('d21b-std-no-past', `nav('오늘'); await wait(400); return check(!document.body.innerText.includes('기한 지난 일') || !rows().includes('예산 전용 신청 취합'), '승인된 새 반복업무가 지난 회차로 안 생김: ' + rows().join(', '));`),
   // 8. 인수인계: 김건강 → 이광진(같은 광진지사)
   s('d22-handover-send', `who(); await wait(250); click('로그아웃'); await wait(350);
-    click('새 직원으로 시작하기'); await wait(250); setVal('input', '이광진'); click('다음'); await wait(300); click('국민건강보험공단'); await wait(300);
+    click('새 직원으로 시작하기'); await wait(250); setVal('input', '이광진'); click('다음'); await wait(300); if ($$('.choice').some(b => b.innerText.startsWith('국민건강보험공단'))) click('국민건강보험공단'); await wait(300);
     setVal('.search', '광진'); await wait(250); $$('.choice').find(b => b.innerText.includes('광진지사')).click(); await wait(350);
     $$('label.choice').find(l => l.innerText.startsWith('민원 응대')).click(); await wait(100); $('.flow-foot .primary').click(); await wait(2600); await start(); await wait(700);
     await logoutTo('김건강'); nav('내 업무'); await wait(300); click('인수인계 하기'); await wait(400);

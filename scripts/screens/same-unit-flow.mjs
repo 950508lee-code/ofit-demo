@@ -4,7 +4,7 @@ import {readFileSync, writeFileSync} from 'node:fs';
 const src = readFileSync('scripts/screens/demo-flow.mjs', 'utf8');
 const st = src.indexOf('const H = `') + 11; const H = src.slice(st, src.indexOf('`;', st));
 const s = (name, js, o = {}) => ({name, js: H + 'try {' + js + '} catch (e) { return "ERR " + e.message; }', ...o});
-const signup = (n, dept, unit) => `click('새 직원으로 시작하기'); await wait(250); setVal('input', '${n}'); click('다음'); await wait(300); click('국민건강보험공단'); await wait(300);
+const signup = (n, dept, unit) => `click('새 직원으로 시작하기'); await wait(250); setVal('input', '${n}'); click('다음'); await wait(300); if ($$('.choice').some(b => b.innerText.startsWith('국민건강보험공단'))) click('국민건강보험공단'); await wait(300);
     setVal('.search', '${dept}'); await wait(250); $$('.choice').find(b => b.innerText.includes('${dept}')).click(); await wait(350);
     $$('label.choice').find(l => l.innerText.startsWith('${unit}')).click(); $('.flow-foot .primary').click(); await wait(2600); await start(); await wait(700);`;
 const units = `nav('내 업무'); await wait(400); const r = $$('.wu-t .nm').map(x => x.innerText);`;

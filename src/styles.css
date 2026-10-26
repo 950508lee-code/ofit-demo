@@ -1222,3 +1222,7 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
   .fill-cal .fd i { animation: fade-in 120ms ease-out both; }
   .fill-bar i { transition: none; }
 }
+/* 시작 화면: 시연은 회원가입부터 — '새 직원으로 시작하기'가 맨 위 출발점 */
+.start-flow .start-join { margin-top: 28px; }
+.start-flow .start-join .choice.acct span { width: auto; }
+.signup-step { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--sub); }
