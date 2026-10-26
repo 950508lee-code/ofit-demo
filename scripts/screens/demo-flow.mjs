@@ -14,7 +14,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const txt = s => ($(s)?.innerText ?? '').split(String.fromCharCode(10)).join(' / ');
 const who = () => $('button.who').click();
-const nav = t => $$('.nav button').find(b => b.innerText.startsWith(t)).click();
+const nav = t => $$('.nav button').find(b => b.innerText.startsWith(t) && getComputedStyle(b).display !== 'none').click();
+const alarm = () => $('.topalarm').click();
+const know = async u => { nav('업무지식'); await wait(500); $$('.kl-g button').find(b => b.innerText.startsWith(u)).click(); await wait(500); };
 // 사람 바꾸기: 들어와 있으면 시연용 계정 바꾸기로, 아니면 로그인 화면에서
 const logoutTo = async n => {
   if ($('.acct-btn')) { $('.acct-btn').click(); await wait(250); const it = $$('.acct-menu button').find(b => b.innerText.startsWith(n)); if (it) { it.click(); await wait(800); return; } $('.acct-btn').click(); }
@@ -48,9 +50,9 @@ const scenes = [
   s('d11-done-undo', `const r = $$('.daylist .row').find(x => x.querySelector('.place')); r.querySelector('.row-main').click(); await wait(400);
     const t = $('.detail h2').innerText; $$('.detail .primary').find(b => b.innerText.trim() === '완료').click(); await wait(400);
     return check(toast().includes('되돌리기'), t + ' 완료 → ' + toast());`),
-  // 4. 자리 화면
+  // 4. 업무 이름표 → 업무지식
   s('d12-place', `$('.toast button')?.click(); await wait(300); const chip = $$('.row button.place')[0]; const name = chip.innerText; chip.click(); await wait(600);
-    return check(txt('.place-h h2') === name && !!$('.beat'), '자리 화면: ' + txt('.place-h h2') + ' / ' + txt('.beat-h span'));`),
+    return check(txt('.know-doc .place-h h2') === name && !!$('.howto'), '업무지식: ' + txt('.know-doc .place-h h2') + ' / ' + txt('.place-h .sub'));`),
   s('d13-place-lower', `$('.std').scrollIntoView({block: 'start'}); await wait(300); return check(!!$('.tenure'), '업무 표준·지난 기록·있었던 사람: ' + txt('.tenure'));`),
   // 5. 부서 일정: 김건강이 노원지사 예산·회계 담당에게
   s('d14-dispatch-compose', `await logoutTo('김건강'); $('.newbtn').click(); await wait(400);
@@ -65,7 +67,7 @@ const scenes = [
     const r = $$('.daylist .row').find(x => x.innerText.includes('예산 집행 실적')); r.querySelector('.row-main').click(); await wait(400);
     return check(!!$('.dueline') && r.innerText.includes('예산·회계 담당에게'), '받은 쪽: ' + r.innerText.split(String.fromCharCode(10)).join(' ') + ' / ' + txt('.dueline .ends'));`),
   s('d17-dispatch-done', `setVal('.detail .memo', '집행률 61%, 양식 첨부했습니다'); $$('.detail .primary').find(b => b.innerText.trim() === '완료').click(); await wait(400);
-    await logoutTo('김건강'); who(); await wait(400); $$('.row').find(r => r.innerText.includes('예산 집행 실적')).click(); await wait(400);
+    await logoutTo('김건강'); nav('내 업무'); await wait(400); $$('.row').find(r => r.innerText.includes('예산 집행 실적')).click(); await wait(400);
     return check(txt('.detail .cells small').includes('1/1'), '보낸 쪽 현황: ' + txt('.detail .cells small') + ' / ' + txt('.sent-dept'));`),
   s('d17b-dispatch-repeat', `$('.detail .x')?.click(); $('.newbtn').click(); await wait(400);
     setVal('.compose input', '월간 집행 실적 회신'); $$('.compose .seg2 button').find(b => b.innerText === '부서').click(); await wait(200);
@@ -78,38 +80,38 @@ const scenes = [
     return check(txt('.rp-sum').startsWith('매월 5일'), '반복 부서 일정: ' + txt('.rp-sum'));`),
   s('d17c-dispatch-repeat-sent', `$('.modal .primary').click(); await wait(500); return check(toast().includes('반복(매월 5일)'), toast());`),
   // 7. 업무 표준: 박공단이 올림 → 경영지원 관리자 한경영 승인
-  s('d19-std-propose', `await logoutTo('박공단'); who(); await wait(400); $$('.card .row').find(r => r.innerText.startsWith('예산·회계')).click(); await wait(500);
+  s('d19-std-propose', `await logoutTo('박공단'); await know('예산·회계');
     click('반복업무 더하기'); await wait(200); setVal('.dline input', '매월 10일 예산 전용 신청 취합'); await wait(250);
     const hint = txt('.std-form .hint'); $('.std').scrollIntoView({block: 'center'}); await wait(200);
     return check(hint.includes('한경영') && txt('.dline small').includes('매월 10일'), hint + ' / ' + txt('.dline small'));`),
-  s('d20-std-review', `$('.std .primary').click(); await wait(400); await logoutTo('한경영'); who(); await wait(400);
+  s('d20-std-review', `$('.std .primary').click(); await wait(400); await logoutTo('한경영'); nav('업무지식'); await wait(400);
     return check(txt('.card .sec-h').includes('검토 1'), txt('.card .sec-h') + ' / ' + txt('.review .rv-h'));`),
-  s('d21-std-approved', `$('.review .primary').click(); await wait(400); await logoutTo('박공단'); nav('알림'); await wait(400);
+  s('d21-std-approved', `$('.review .primary').click(); await wait(400); await logoutTo('박공단'); alarm(); await wait(400);
     return check(document.body.innerText.includes('개가 승인됐습니다'), '알림: ' + ($$('.notice')[0]?.innerText.split(String.fromCharCode(10)).join(' ') ?? ''));`),
-  s('d21b-std-no-past', `nav('홈'); await wait(400); return check(!document.body.innerText.includes('기한 지난 일') || !rows().includes('예산 전용 신청 취합'), '승인된 새 반복업무가 지난 회차로 안 생김: ' + rows().join(', '));`),
+  s('d21b-std-no-past', `nav('오늘'); await wait(400); return check(!document.body.innerText.includes('기한 지난 일') || !rows().includes('예산 전용 신청 취합'), '승인된 새 반복업무가 지난 회차로 안 생김: ' + rows().join(', '));`),
   // 8. 인수인계: 김건강 → 이광진(같은 광진지사)
   s('d22-handover-send', `who(); await wait(250); click('로그아웃'); await wait(350);
     click('새 직원으로 시작하기'); await wait(250); setVal('input', '이광진'); click('다음'); await wait(300); click('국민건강보험공단'); await wait(300);
     setVal('.search', '광진'); await wait(250); $$('.choice').find(b => b.innerText.includes('광진지사')).click(); await wait(350);
     $$('label.choice').find(l => l.innerText.startsWith('민원 응대')).click(); await wait(100); $('.flow-foot .primary').click(); await wait(2600); click('시작하기'); await wait(700);
-    await logoutTo('김건강'); who(); await wait(300); click('인수인계 하기'); await wait(400);
+    await logoutTo('김건강'); nav('내 업무'); await wait(300); click('인수인계 하기'); await wait(400);
     $$('label.choice').find(l => l.innerText.startsWith('이광진')).click(); $$('label.choice').find(l => l.innerText.startsWith('홍보')).click(); await wait(200);
     if ($('.flow textarea')) setVal('.flow textarea', '누리집 공지는 화요일 오전에 올립니다. 보도자료 결과는 언론 스크랩 폴더를 보세요'); await wait(100);
     return check($$('label.choice').find(l => l.innerText.startsWith('이광진'))?.innerText.includes('같은 부서'), '받을 사람: ' + $$('label.choice').find(l => l.innerText.startsWith('이광진'))?.innerText.split(String.fromCharCode(10)).join(' '));`),
   s('d23-handover-accept', `$('.flow .primary.wide').click(); await wait(500); await logoutTo('이광진'); await wait(200);
     const inbox = document.body.innerText.includes('받기'); click('받기'); await wait(500);
     return check(inbox && !!$('.inbox.got'), '받은 업무 판: ' + txt('.inbox.got'));`),
-  s('d24-handover-place', `$$('.row button.place').find(b => b.innerText === '홍보')?.click() ?? (who(), 0); await wait(500);
-    if (!$('.place-h')) { $$('.card .row').find(r => r.innerText.startsWith('홍보')).click(); await wait(500); }
+  s('d24-handover-place', `$$('.row button.place').find(b => b.innerText === '홍보')?.click() ?? (nav('업무지식'), 0); await wait(500);
+    if (txt('.know-doc .place-h h2') !== '홍보') await know('홍보');
     $('.tenure').scrollIntoView({block: 'center'}); await wait(200);
     return check(txt('.tenure').includes('김건강') && txt('.tenure').includes('이광진'), '사람 선: ' + txt('.tenure'));`),
   // 9. 업무 바꾸기
-  s('d25-manage', `await logoutTo('김건강'); who(); await wait(400); click('업무 바꾸기'); await wait(400);
+  s('d25-manage', `await logoutTo('김건강'); nav('내 업무'); await wait(400); click('업무 바꾸기'); await wait(400);
     $$('label.choice').find(l => l.innerText.startsWith('계약·구매')).click(); await wait(200);
     $('.flow-foot').scrollIntoView(); return check($('.flow-foot .primary').innerText.includes('1개 새로 맡기'), $('.flow-foot .primary').innerText);`),
-  s('d26-manage-done', `$('.flow-foot .primary').click(); await wait(500); return check(toast().includes('맡았습니다'), toast() + ' / 내 업무: ' + $$('.card .row .t').slice(0, 4).map(x => x.innerText.split(String.fromCharCode(10))[0]).join(', '));`),
+  s('d26-manage-done', `$('.flow-foot .primary').click(); await wait(500); return check(toast().includes('맡았습니다'), toast() + ' / 내 업무: ' + $$('.wu-t .nm').slice(0, 4).map(x => x.innerText.split(String.fromCharCode(10))[0]).join(', '));`),
   // 10. 달력·알림
   s('d27-calendar', `nav('달력'); await wait(500); return check($$('.cell').length >= 35, '달력 칸 ' + $$('.cell').length + ', 칩 ' + $$('.cell .ev span').length);`),
-  s('d28-notices', `nav('알림'); await wait(400); return check($$('.notice').length > 0, '알림 ' + $$('.notice').length + '건: ' + $$('.notice .k').map(x => x.innerText).join(', '));`),
+  s('d28-notices', `alarm(); await wait(400); return check($$('.notice').length > 0, '알림 ' + $$('.notice').length + '건: ' + $$('.notice .k').map(x => x.innerText).join(', '));`),
 ];
 writeFileSync(process.argv[2], JSON.stringify(scenes));

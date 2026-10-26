@@ -9,3 +9,6 @@ export type Place = {kind: 'unit' | 'dept'; id: string};
 export type Spot = {q: string; anchor: string; text?: string};
 export const PlaceNav = createContext<(p: Place, spot?: Spot) => void>(() => {});
 export const usePlaceNav = () => useContext(PlaceNav);
+/** 내 업무로 가기. unitId 를 주면 그 업무를 펼쳐 보인다. */
+export const WorkNav = createContext<(unitId?: string) => void>(() => {});
+export const useWorkNav = () => useContext(WorkNav);

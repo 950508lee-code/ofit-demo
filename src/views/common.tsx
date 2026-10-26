@@ -9,7 +9,7 @@ import {usePlaceNav} from './placeNav';
 import {Pips} from './shapes';
 import type {CSSProperties} from 'react';
 
-export type Open = {kind: 'duty' | 'task'; id: string; date: string} | {kind: 'daily'; date: string} | {kind: 'unit'; id: string} | {kind: 'dispatch'; id: string} | null;
+export type Open = {kind: 'duty' | 'task'; id: string; date: string} | {kind: 'daily'; date: string} | {kind: 'unit'; id: string} | {kind: 'dispatch'; id: string} | {kind: 'recs'; id: string} | null;
 export type Ctx = {s: State; setS: (s: State) => void; open: Open; setOpen: (o: Open) => void; toast: (m: string, undo?: State) => void};
 
 const isSel = (open: Open, r: Row) =>

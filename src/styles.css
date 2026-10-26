@@ -714,7 +714,7 @@ button.who span { font-size: 13px; }
 .wb-track i.done { background: var(--pc, var(--ink)); }
 .wb-track i.late { background: color-mix(in srgb, var(--late) 70%, var(--bg)); }
 .place-h .swatch { display: inline-block; width: 14px; height: 14px; margin-right: 10px; border-radius: 4px; background: var(--pc); vertical-align: 2px; }
-.place .bm i { background: var(--pc, var(--ink)); }
+.place .bm i, .wu .bm i { background: var(--pc, var(--ink)); }
 
 /* ── 판(서피스): 바탕은 옅은 회색, 덩어리마다 흰 판 하나 — 어디까지가 한 묶음인지 경계로 보인다 ──
    1층 바탕(--canvas) · 2층 판(--bg, 둥근 20) · 3층 판 안의 줄(호버·선택은 --chip) */
@@ -1068,3 +1068,73 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .gd-toc button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .gd-toc span { margin-right: 6px; color: var(--sub); }
 .gd-toc + .gd-body { margin-top: 24px; }
+
+/* ── 내 업무 · 업무지식 나누기(2026-10-26 사용자 판정: 화면은 분리, 데이터는 통합, 폰 탭 수 유지) ── */
+/* 알림: PC·폰 모두 위쪽 숫자 버튼 */
+.brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.brand-row .brand { padding-right: 0; }
+.topalarm { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; font-size: 15px; font-weight: 700; color: var(--sub); }
+.topalarm:hover { color: var(--ink); background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.topalarm.on { color: var(--ink); background: var(--bg); }
+.topalarm .badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--ink); color: var(--bg); font-style: normal; font-size: 12px; display: grid; place-items: center; }
+@media (max-width: 900px) {
+  .brand-row { display: contents; }
+  .side .newbtn { order: 1; }
+  .side .topalarm { order: 2; padding: 0 4px; }
+  .worktabs { display: flex; margin-top: 12px; }
+  .worktabs button { flex: 1; }
+}
+
+/* 내 업무: 머리 + 업무마다 접힌 줄 */
+.work-h { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.work-h .sec-acts { display: flex; gap: 8px; }
+.wu-h { display: flex; align-items: flex-start; gap: 12px; }
+.wu-t { flex: 1; min-width: 0; display: grid; gap: 4px; padding: 4px 0; text-align: left; }
+.wu-t .nm { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.wu-t .nm .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 3px; background: var(--pc); vertical-align: 2px; }
+.wu-t .nx { font-size: 15px; color: var(--sub); }
+.wu-t .nx b { color: var(--ink); font-weight: 700; }
+.wu-t .pr { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.wu-t .pr .ask { font-size: 14px; font-weight: 700; color: var(--ink); }
+.wu-acts { display: flex; gap: 4px; flex: none; }
+.wu-b { margin-top: 8px; }
+.wu-b > .day, .wu-b > .beat { padding: 14px 0 8px; border-top: 1px solid var(--line); }
+.wu-b > .day:first-child { border-top: 0; padding-top: 4px; }
+.wu-give { padding: 14px 0 4px; border-top: 1px solid var(--line); }
+.list.me.work > .card.wu { padding: 18px 0 14px; }
+
+/* 업무지식: 왼쪽 업무 목록 + 오른쪽 문서 */
+@media (min-width: 901px) {
+  .body.knowbody, .body.knowbody:not(:has(.detail)) { grid-template-columns: minmax(0, 1080px) 0px; }
+  .body.knowbody:has(> .pw) { grid-template-columns: minmax(0, 1080px) 0px; column-gap: 0; }
+  .body.knowbody > .pw { position: fixed; top: 16px; right: 16px; bottom: 16px; width: 380px; z-index: 20; pointer-events: none; }
+  .body.knowbody > .pw > .detail { pointer-events: auto; position: static; margin-top: 0; max-height: 100%; box-shadow: 0 16px 48px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.06); }
+}
+.know-top > .card { margin-top: 16px; }
+.know-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 16px; }
+.know-list { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; padding: 8px 0; }
+.kl-g + .kl-g { margin-top: 14px; }
+.kl-g h3 { margin: 0 0 4px; padding: 0 10px; font-size: 13px; font-weight: 700; color: var(--sub); }
+.kl-g button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: 10px; font-size: 15px; font-weight: 600; text-align: left; }
+.kl-g button:hover { background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.kl-g button.on { background: var(--bg); font-weight: 800; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.kl-g button small { flex: none; font-size: 12px; font-weight: 700; color: var(--sub); }
+.kl-new { margin: 12px 0 0 6px; text-decoration: underline; text-underline-offset: 3px; }
+.know-doc.list.place { margin-top: 0; }
+.rec-last { margin-top: 4px; font-size: 15px; color: var(--sub); }
+.know-list > h2 { margin: 16px 0 10px; font-size: 22px; letter-spacing: -.03em; }
+@media (max-width: 900px) {
+  .know-grid { display: block; margin-top: 8px; }
+  .know-list { position: static; max-height: none; }
+  .know:not(.reading) .know-doc { display: none; }
+  .know.reading .know-list { display: none; }
+  .know-list > h2 { display: none; }
+}
+.wu-t .pr > * { white-space: nowrap; }
+@media (max-width: 900px) {
+  .worktabs { width: 100%; box-sizing: border-box; }
+  .worktabs button { white-space: nowrap; }
+  .wu-h { flex-wrap: wrap; gap: 0; }
+  .wu-t { flex-basis: 100%; }
+  .wu-acts { margin-left: -4px; }
+}

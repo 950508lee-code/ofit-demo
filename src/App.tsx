@@ -2,15 +2,17 @@ import {flushSync} from 'react-dom';
 import {useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
 import {addNotice, deptName, dutyById, hasNotice, loadState, meOf, myDuties, occKey, orgName, saveState, today, unitById, unreadCount, type State, roleOf
 } from './store';
-import {DailyCard, DutyCard, TaskCard, UnitPanel} from './Cards';
+import {DailyCard, DutyCard, RecsCard, TaskCard, UnitPanel} from './Cards';
 import {Login} from './Entry';
 import {Splash} from './Splash';
 import {leftToday, summarize} from './days';
 import {permission, show, type Perm} from './notify';
 import {DayList, type Open} from './views/common';
-import {DeptPlace, UnitPlace} from './views/Place';
+import {DeptPlace} from './views/Place';
+import {Know} from './views/Know';
+import {Work} from './views/Work';
 import {AccountSwitch} from './views/AccountSwitch';
-import {PlaceNav, type Place, type Spot} from './views/placeNav';
+import {PlaceNav, WorkNav, type Place, type Spot} from './views/placeNav';
 import {Home} from './views/Home';
 import {Calendar} from './views/Calendar';
 import {Notices} from './views/Notices';
@@ -21,7 +23,7 @@ import {DispatchCard} from './views/Dispatch';
 import {SearchResults} from './views/Search';
 import {dateLabel} from './schedule';
 
-type View = 'home' | 'calendar' | 'notices' | 'me' | 'search';
+type View = 'home' | 'calendar' | 'work' | 'know' | 'notices' | 'me' | 'search';
 
 export default function App() {
   const [s, setS] = useState<State>(loadState);
@@ -41,8 +43,11 @@ export default function App() {
   const endSplash = useCallback(() => setSplash(false), []);
   // 자리 화면(업무·부서). 열려 있으면 본문을 대신하고, 메뉴 표시는 원래 화면에 남긴다.
   const [place, setPlace] = useState<Place | null>(null);
-  // 찾기 결과에서 왔으면 업무 화면 안에서 그 자리로 가서 찾은 말을 강조한다
+  // 찾기 결과에서 왔으면 업무지식 안에서 그 자리로 가서 찾은 말을 강조한다
   const [spot, setSpot] = useState<Spot | null>(null);
+  // 업무지식에서 고른 업무(없으면 PC는 내 첫 업무, 폰은 목록) · 내 업무에서 펼쳐 보일 업무
+  const [knowId, setKnowId] = useState<string | null>(null);
+  const [workFocus, setWorkFocus] = useState<string | null>(null);
   // 시연용 계정 바꾸기를 한 번이라도 쓰면 본문 위에 '누구로 보는 중' 띠
   const [viewing, setViewing] = useState(false);
   // 상세 패널 닫기: 밀려 나가는 움직임이 끝난 뒤에 닫는다(PC 180ms·폰 250ms, 움직임 줄이기 120ms)
@@ -88,9 +93,14 @@ export default function App() {
   // 찾기는 쓰는 동안 화면이 바뀌므로 전환 움직임 없이 바로 결과로 간다(입력 칸 초점 유지)
   const toSearch = () => { setView('search'); setPlace(null); setOpen(null); };
   const go = (v: View, then?: () => void) =>
-    swap(() => { setView(v); setOpen(null); setPlace(null); setWorkSub({kind: 'main'}); then?.(); }, v === view && !place);
-  // 이름표를 누르면 그 자리(업무·부서) 화면으로.
-  const goPlace = (p: Place, sp?: Spot) => swap(() => { setPlace(p); setOpen(null); setSpot(sp ?? null); });
+    swap(() => { setView(v); setOpen(null); setPlace(null); setWorkSub({kind: 'main'}); setSpot(null); setWorkFocus(null); if (v === 'know') setKnowId(null); then?.(); }, v === view && !place);
+  // 업무 이름표를 누르면 그 업무의 업무지식으로, 부서 이름표는 부서 화면으로.
+  const goPlace = (p: Place, sp?: Spot) => swap(() => {
+    setOpen(null); setSpot(sp ?? null);
+    if (p.kind === 'unit') { setPlace(null); setView('know'); setKnowId(p.id); } else setPlace(p);
+  });
+  // 업무지식 '내 업무에서 보기' → 내 업무에서 그 업무를 펼친다
+  const goWork = (unitId?: string) => swap(() => { setPlace(null); setOpen(null); setView('work'); setWorkSub({kind: 'main'}); setWorkFocus(unitId ?? null); });
 
   // 마감 알림: 창이 열려 있는 동안 30초마다 확인해 알림 내역에 쌓고, 허용돼 있으면 윈도우 알림도 띄운다.
   // 외부 서버가 필요 없어 업무망에서도 된다.
@@ -145,7 +155,11 @@ export default function App() {
   if (open?.kind === 'dispatch') panel = <DispatchCard key={open.id} s={s} setS={setS} toast={setToast} onClose={onClose} id={open.id} />;
   if (open?.kind === 'unit') {
     const u = unitById(s, open.id)!;
-    panel = <UnitPanel key={u.id} {...panelProps} unit={u} onGive={() => { setOpen(null); setView('me'); setWorkSub({kind: 'send', preselect: u.id}); }} />;
+    panel = <UnitPanel key={u.id} {...panelProps} unit={u} onGive={() => { setOpen(null); setView('work'); setWorkSub({kind: 'send', preselect: u.id}); }} />;
+  }
+  if (open?.kind === 'recs') {
+    const u = unitById(s, open.id);
+    if (u) panel = <RecsCard key={`recs${u.id}`} s={s} onClose={onClose} unit={u} />;
   }
   // 달력에서는 아무것도 열려 있지 않으면 오른쪽에 고른 날 목록을 둔다
   if (!panel && view === 'calendar' && !place) {
@@ -160,24 +174,32 @@ export default function App() {
   const ICON: Partial<Record<View, ReactNode>> = {
     home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9v11h14V9" /><path d="M10 20v-6h4v6" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
+    work: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" /></>,
     me: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="10" r="3" /><path d="M6.5 18.5c1.2-2 3.1-3 5.5-3s4.3 1 5.5 3" /></>,
   };
-  const NAV: {id: View; label: string; count?: number; badge?: boolean; only?: 'd' | 'm'}[] = [
-    {id: 'home', label: '홈', count: left},
+  // PC: 오늘 · 달력 · 내 업무 · 업무지식. 폰: 오늘 · 달력 · 업무(안에서 내 업무/업무지식) · 내 정보. 알림은 둘 다 위쪽 숫자 버튼(2026-10-26).
+  const NAV: {id: View; label: string; count?: number; badge?: boolean; only?: 'd' | 'm'; also?: View}[] = [
+    {id: 'home', label: '오늘', count: left},
     {id: 'calendar', label: '달력'},
-    {id: 'notices', label: '알림', count: unread, badge: true, only: 'd'},
+    {id: 'work', label: '내 업무', only: 'd'},
+    {id: 'know', label: '업무지식', only: 'd'},
+    {id: 'work', label: '업무', only: 'm', also: 'know'},
     {id: 'me', label: '내 정보', only: 'm'},
   ];
+  const on = (n: (typeof NAV)[number]) => !place && (view === n.id || view === n.also);
 
   return (
-    <PlaceNav.Provider value={goPlace}>
+    <PlaceNav.Provider value={goPlace}><WorkNav.Provider value={goWork}>
       <div className="shell">
         <aside className="side">
-          <div className="brand" data-logo>OFIT</div>
+          <div className="brand-row">
+            <div className="brand" data-logo>OFIT</div>
+            <button className={`topalarm${view === 'notices' ? ' on' : ''}`} aria-current={view === 'notices' ? 'page' : undefined} onClick={() => go('notices')}
+              aria-label={unread ? `알림 ${unread}개 안 읽음` : '알림'}>
+              알림{unread > 0 && <em className="badge">{unread}</em>}
+            </button>
+          </div>
           <button className="primary newbtn" onClick={() => setCompose({target: 'me', date: view === 'home' || view === 'calendar' ? sel : today()})}>일정 등록</button>
-          <button className={`topalarm m-only${view === 'notices' ? ' on' : ''}`} onClick={() => go('notices')}>
-            알림{unread > 0 && <em className="badge">{unread}</em>}
-          </button>
           <label className="srch d-only">
             <input ref={qRef} value={q} placeholder="업무 찾기" aria-label="업무 찾기"
               onChange={e => { setQ(e.target.value); toSearch(); }}
@@ -186,8 +208,8 @@ export default function App() {
           </label>
           <nav className="nav" aria-label="메뉴">
             {NAV.map(n => (
-              <button key={n.id} className={`${view === n.id ? 'on' : ''}${n.only ? ` ${n.only}-only` : ''}`}
-                aria-current={view === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
+              <button key={n.id + n.label} className={`${on(n) ? 'on' : ''}${n.only ? ` ${n.only}-only` : ''}`}
+                aria-current={on(n) ? 'page' : undefined} onClick={() => go(n.id)}>
                 {ICON[n.id] && <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">{ICON[n.id]}</svg>}
                 <span>{n.label}</span>
                 {!!n.count && <em className={n.badge ? 'badge' : ''}>{n.count}</em>}
@@ -207,15 +229,21 @@ export default function App() {
               <b>{me.name}</b> 님으로 보는 중 · {[deptName(s, me.deptId), roleOf(s, me.id)].filter(Boolean).join(' · ')}
             </div>
           )}
-          <div className={`body${place ? '' : view === 'calendar' ? ' calbody' : ''}`}>
-            {place?.kind === 'unit' && <UnitPlace {...ctx} id={place.id} spot={spot} onBack={() => swap(() => { setPlace(null); setOpen(null); })}
-              onGive={() => go('me', () => setWorkSub({kind: 'send', preselect: place.id}))} />}
+          <div className={`body${place ? '' : view === 'calendar' ? ' calbody' : view === 'know' ? ' knowbody' : ''}`}>
+            {!place && (view === 'work' || view === 'know') && (
+              <div className="seg2 worktabs m-only" role="tablist" aria-label="업무">
+                <button role="tab" aria-selected={view === 'work'} className={view === 'work' ? 'on' : ''} onClick={() => go('work')}>내 업무</button>
+                <button role="tab" aria-selected={view === 'know'} className={view === 'know' ? 'on' : ''} onClick={() => go('know')}>업무지식</button>
+              </div>
+            )}
             {place?.kind === 'dept' && <DeptPlace {...ctx} id={place.id} onBack={() => swap(() => { setPlace(null); setOpen(null); })} />}
-            {!place && view === 'home' && <Home onSettle={() => go('me', () => setWorkSub({kind: 'settle', mode: 'empty'}))} {...ctx} sel={sel} setSel={setSel} onCompose={p => setCompose({...p, target: 'me'})} />}
+            {!place && view === 'work' && <Work {...ctx} sub={workSub} setSub={setWorkSub} focus={workFocus} onHome={() => go('home', () => setSel(today()))} />}
+            {!place && view === 'know' && <Know {...ctx} id={knowId} setId={id => { setKnowId(id); setSpot(null); setOpen(null); }} spot={spot} />}
+            {!place && view === 'home' && <Home onSettle={() => go('work', () => setWorkSub({kind: 'settle', mode: 'empty'}))} {...ctx} sel={sel} setSel={setSel} onCompose={p => setCompose({...p, target: 'me'})} />}
             {!place && view === 'search' && <SearchResults s={s} q={q} />}
             {!place && view === 'calendar' && <Calendar {...ctx} sel={sel} setSel={setSel} />}
-            {!place && view === 'notices' && <Notices s={s} setS={setS} onGo={n => go(n.go!, () => { if (n.go === 'home') setSel(today()); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); })} />}
-            {!place && view === 'me' && <Me onSwitch={n => { setS(n); setViewing(true); go('home'); setSel(today()); }} {...ctx} perm={perm} setPerm={setPerm} sub={workSub} setSub={setWorkSub} onHome={() => go('home', () => setSel(today()))} />}
+            {!place && view === 'notices' && <Notices s={s} setS={setS} onGo={n => go(n.go === 'me' ? (n.kind === 'standard' ? 'know' : 'work') : n.go!, () => { if (n.go === 'home') setSel(today()); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); })} />}
+            {!place && view === 'me' && <Me onSwitch={n => { setS(n); setViewing(true); go('home'); setSel(today()); }} s={s} setS={setS} perm={perm} setPerm={setPerm} />}
             {panel && <div className={`pw${leaving ? ' out' : ''}`}>{panel}</div>}
           </div>
         </main>
@@ -224,7 +252,7 @@ export default function App() {
         <Compose s={s} setS={setS} preset={compose} onClose={() => setCompose(null)}
           onDone={(msg, date, to) => {
             setCompose(null); setToast(msg);
-            if (to?.sent) { setView('me'); setWorkSub({kind: 'main'}); setOpen(null); }
+            if (to?.sent) { setView('work'); setPlace(null); setWorkSub({kind: 'main'}); setOpen(null); }
             else { setSel(date); }
           }} />
       )}
@@ -235,6 +263,6 @@ export default function App() {
         </div>
       )}
       {overlay}
-    </PlaceNav.Provider>
+    </WorkNav.Provider></PlaceNav.Provider>
   );
 }

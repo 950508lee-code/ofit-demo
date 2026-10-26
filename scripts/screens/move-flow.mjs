@@ -11,12 +11,12 @@ writeFileSync(process.argv[2], JSON.stringify([
   {name: 'm0', url: 'http://localhost:5180/', loadWait: 1500},
   s('m1', `localStorage.clear(); location.reload(); return 1;`, {wait: 4000}),
   s('m2-setup', `${signup('박공단', '노원지사', '계약·구매')}
-    who(); await wait(300); click('인수인계 하기'); await wait(400);
+    nav('내 업무'); await wait(300); click('인수인계 하기'); await wait(400);
     $$('label.choice').find(l => l.innerText.startsWith('김건강')).click(); $$('label.choice').find(l => l.innerText.startsWith('계약·구매')).click();
     setVal('.flow textarea', '계약 만료 목록은 공유폴더 계약대장에 있습니다'); $('.flow .primary.wide').click(); await wait(500);
     who(); await wait(200); click('로그아웃'); await wait(300); ${signup('이광진', '광진지사', '민원 응대')}
     await logoutTo('김건강'); return 'ok';`),
-  s('m3-me', `who(); await wait(400); return $$('.sec-acts button').map(b => b.innerText).join(', ');`),
+  s('m3-me', `nav('내 업무'); await wait(400); return $$('.work-h .sec-acts button').map(b => b.innerText).join(', ');`),
   s('m4-sort', `click('부서 옮기기'); await wait(400);
     const sels = $$('.sort-row select'); const names = $$('.sort-row b').map(b => b.innerText);
     sels.forEach((sel, i) => { const want = names[i] === '홍보' ? 'drop' : [...sel.options].find(o => o.text.startsWith('이광진')).value; setEl(sel, want); });

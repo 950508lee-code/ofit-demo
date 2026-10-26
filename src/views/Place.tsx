@@ -1,133 +1,102 @@
 import {addDays, cycleOf, monthDay, occurrences, ruleLabel, ymd} from '../schedule';
 import {
-  cancelHandover, deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf, nextDateOf, pendingOf,
-  addRef, linkRef, otherRefs, recordsOfUnit, refUse, refsOfUnit, sentDispatches, stepsOf, today, unitById, unlinkRef, type State,
+  deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf,
+  addRef, linkRef, otherRefs, recordsOfUnit, refUse, refsOfUnit, sentDispatches, stepsOf, today, unlinkRef, type State,
 } from '../store';
 import {itemsInRange, type Row} from '../days';
 import type {Duty} from '../model';
 import {RowButton, type Ctx} from './common';
-import {Cells} from './shapes';
-import {UnitStandard} from './Standard';
-import {GuideBox} from './Guide';
 import {placeColor} from './placeColor';
-import {useEffect, useRef, useState, type CSSProperties} from 'react';
-import type {Spot} from './placeNav';
-import {showSpot} from './spot';
+import {useState, type CSSProperties} from 'react';
 
 
 const CYCLES = ['매일', '매주', '매월', '분기', '매년'] as const;
 
 /**
- * 업무 자리 화면 = 저절로 쌓이는 인수인계서.
- * 위에서부터(기존 시안의 업무 페이지 순서, 2026-10-26 사용자 판정): 개요 → 업무 안내(부서마다) → 처리 순서(반복업무마다) → 반복업무(박자·리듬별) → 참고자료
- * → 이 자리로 온 요청 → 업무 표준 → 지난 기록 → 거쳐 간 사람.
+ * 업무 하나를 이루는 조각들. 같은 데이터를 두 화면이 나눠 쓴다(2026-10-26 사용자 판정: 화면은 분리, 데이터는 통합).
+ * 내 업무(Work.tsx): 반복업무 줄 · 달마다 몰리는 때 · 받은 요청 · 지난 기록 · 업무 표준(반복업무 더하기)
+ * 업무지식(Know.tsx): 업무 안내 · 처리 순서 · 참고자료 · 업무 표준 · 지난 기록으로 가는 줄 · 거쳐 간 사람
  */
-export function UnitPlace({s, setS, open, setOpen, toast, id, spot, onBack, onGive}: Ctx & {id: string; spot?: Spot | null; onBack: () => void; onGive: () => void}) {
-  const u = unitById(s, id);
-  const root = useRef<HTMLElement>(null);
-  // 찾기 결과에서 왔으면 화면 전환이 끝난 뒤 그 자리로 옮기고 찾은 말을 칠한다
-  useEffect(() => {
-    if (!spot || !root.current) return;
-    let undo = () => {};
-    const t = setTimeout(() => { if (root.current) undo = showSpot(root.current, spot); }, 260);
-    return () => { clearTimeout(t); undo(); };
-  }, [spot, id]);
-  if (!u) return null;
-  const me = meOf(s)!;
-  const duties = dutiesOfUnit(s, id);
+
+/** 반복업무 줄 — 주기별로 묶고, 다음에 올 날을 오른쪽에. 누르면 오른쪽 판(처리 순서·완료). */
+export function DutyRows({s, open, setOpen, unitId}: Pick<Ctx, 's' | 'open' | 'setOpen'> & {unitId: string}) {
+  const duties = dutiesOfUnit(s, unitId);
   const ahead = itemsInRange(s, today(), addDays(today(), 120));
-  const mine = holdsOf(s, s.me).includes(id);
-  const pending = pendingOf(s, id);
-  const next = mine ? nextDateOf(s, id) : undefined;
-  const asks = myDispatches(s).filter(d => d.unitId === id);
-  // 지난 기록은 한 줄이라도 남긴 것만 — 다음 사람에게 쓸모 있는 것
-  const noted = recordsOfUnit(s, id).filter(r => r.note.trim());
-  const recs = noted.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
-  // 같은 부서에서 이 자리에 앉았던 사람: 지금 맡은 사람(맡은 날부터) + 넘겨주고 떠난 사람(넘긴 날까지)
-  const now = s.people.filter(p => p.deptId === me.deptId && holdsOf(s, p.id).includes(id))
-    .map(p => ({pid: p.id, until: '', text: s.since[`${p.id}:${id}`] ? `${s.since[`${p.id}:${id}`].slice(0, 7).replace('-', '.')}부터 지금` : '지금'}));
-  const left = s.handovers.filter(h => h.state === 'accepted' && h.unitIds.includes(id) && s.people.find(p => p.id === h.from)?.deptId === me.deptId)
-    .map(h => ({pid: h.from, until: h.date, text: `${h.date.slice(0, 7).replace('-', '.')}까지`}));
-
-  return (
-    <section ref={root} className="list place" style={{'--pc': placeColor(s, {kind: 'unit', id})} as CSSProperties}>
-      <div className="flow-back"><button className="textbtn" onClick={onBack}>돌아가기</button></div>
-      <div className="place-h">
-        <div>
-          <p className="over">업무 · {u.series}</p>
-          <h2><span className="swatch" aria-hidden="true" />{u.name}</h2>
-          <p className="sub">{deptName(s, me.deptId)} · 반복업무 {duties.length}개{next ? ` · 다음 ${monthDay(next)}` : ''}</p>
-          <Cells n={duties.filter(d => stepsOf(s, d).length).length} of={duties.length} label="처리 순서 적은 일" />
-        </div>
-        {mine && (pending
-          ? <button className="ghost" onClick={() => { setS(cancelHandover(s, pending.id)); toast('인수인계를 취소했습니다'); }}>{nameOf(s, pending.to)} 님에게 인수인계 중 · 취소</button>
-          : <button className="ghost strong" onClick={onGive}>인수인계 하기</button>)}
+  return <>
+    {CYCLES.filter(c => duties.some(d => cycleOf(d.rule) === c)).map(c => (
+      <div key={c} className="day">
+        <h3 className="dept">{c} <span>{duties.filter(d => cycleOf(d.rule) === c).length}</span></h3>
+        {duties.filter(d => cycleOf(d.rule) === c).map(d => {
+          const st = stepsOf(s, d).length;
+          const when = [c === '매일' ? '' : ruleLabel(d.rule), st ? `순서 ${st}단계` : ''].filter(Boolean).join(' · ');
+          const nx = c !== '매일' ? nextOf(ahead, d.id) : undefined;
+          const r: Row = {kind: c === '매일' ? 'daily' : 'duty', id: d.id, date: nx ?? today(), title: d.title, done: false, when};
+          return <div key={d.id}><RowButton s={s} r={r} open={open} setOpen={setOpen} right={nx ? monthDay(nx) : c === '매일' ? '매일' : ''} /></div>;
+        })}
       </div>
+    ))}
+  </>;
+}
 
-      <GuideBox s={s} setS={setS} toast={toast} unitId={id} />
+/** 이 업무 담당이라 받은 요청. 없으면 칸을 두지 않는다. */
+export function Asks({s, open, setOpen, unitId}: Pick<Ctx, 's' | 'open' | 'setOpen'> & {unitId: string}) {
+  const asks = myDispatches(s).filter(d => d.unitId === unitId);
+  if (!asks.length) return null;
+  return (
+    <div className="day">
+      <h3 className="dept">받은 요청 <span>{asks.length}</span></h3>
+      {asks.map(d => (
+        <RowButton key={d.id} s={s} open={open} setOpen={setOpen} right={doneForMe(s, d) ? '완료' : `${monthDay(d.due)}까지`}
+          r={{kind: 'drecv', id: d.id, date: d.due, title: d.title, done: !!doneForMe(s, d), place: deptName(s, d.fromDept), at: {kind: 'dept', id: d.fromDept}}} />
+      ))}
+    </div>
+  );
+}
 
-      <HowTo s={s} duties={duties} />
+/** 지난 기록 — 같은 부서에서 이 업무를 끝내며 한 줄이라도 남긴 것(다음 사람에게 쓸모 있는 것). */
+export const notedOf = (s: State, unitId: string) =>
+  recordsOfUnit(s, unitId).filter(r => r.note.trim()).sort((a, b) => b.date.localeCompare(a.date));
 
-      <YearBeat duties={duties} />
-
-      {CYCLES.filter(c => duties.some(d => cycleOf(d.rule) === c)).map(c => (
-        <div key={c} className="day">
-          <h3 className="dept">{c} <span>{duties.filter(d => cycleOf(d.rule) === c).length}</span></h3>
-          {duties.filter(d => cycleOf(d.rule) === c).map(d => {
-            const st = stepsOf(s, d).length;
-            const when = [c === '매일' ? '' : ruleLabel(d.rule), st ? `순서 ${st}단계` : ''].filter(Boolean).join(' · ');
-            const nx = mine && c !== '매일' ? nextOf(ahead, d.id) : undefined;
-            const r: Row = {kind: c === '매일' ? 'daily' : 'duty', id: d.id, date: nx ?? '', title: d.title, done: false, when};
-            return mine && nx
-              ? <div key={d.id} data-spot={`duty:${d.id}`}><RowButton s={s} r={r} open={open} setOpen={setOpen} right={monthDay(nx)} /></div>
-              : <div key={d.id} data-spot={`duty:${d.id}`} className="row static"><span className="dot" /><span className="t">{d.title}{when && <span className="meta"><span className="when">{when}</span></span>}</span></div>;
-          })}
+export function Records({s, unitId, limit = 8, head = true}: {s: State; unitId: string; limit?: number; head?: boolean}) {
+  const noted = notedOf(s, unitId);
+  return (
+    <div className="day recs">
+      {head && <h3 className="dept">지난 기록 <span>{noted.length}</span></h3>}
+      {noted.length === 0 && <p className="none">남긴 기록이 없습니다</p>}
+      {noted.slice(0, limit).map(r => (
+        <div key={r.dutyId + r.date + r.by} className="rec">
+          <span className="rd">{r.date.slice(2).replace(/-/g, '.')} · {nameOf(s, r.by)}</span>
+          <span className="rt">{s.duties.find(d => d.id === r.dutyId)?.title}</span>
+          {r.note && <span className="rn">{r.note}</span>}
         </div>
       ))}
+    </div>
+  );
+}
 
-      <Refs s={s} setS={setS} toast={toast} unitId={id} mine={mine} />
-
-      {asks.length > 0 && (
-        <div className="day">
-          <h3 className="dept">{u.name} 담당이라 받은 요청 <span>{asks.length}</span></h3>
-          {asks.map(d => (
-            <RowButton key={d.id} s={s} open={open} setOpen={setOpen} right={doneForMe(s, d) ? '완료' : `${monthDay(d.due)}까지`}
-              r={{kind: 'drecv', id: d.id, date: d.due, title: d.title, done: !!doneForMe(s, d), place: deptName(s, d.fromDept), at: {kind: 'dept', id: d.fromDept}}} />
+/** 이 자리에 있었던 사람 — 같은 부서에서: 지금 맡은 사람(맡은 날부터) + 넘겨주고 떠난 사람(넘긴 날까지). */
+export function Tenure({s, unitId}: {s: State; unitId: string}) {
+  const me = meOf(s)!;
+  const now = s.people.filter(p => p.deptId === me.deptId && holdsOf(s, p.id).includes(unitId))
+    .map(p => ({pid: p.id, until: '', text: s.since[`${p.id}:${unitId}`] ? `${s.since[`${p.id}:${unitId}`].slice(0, 7).replace('-', '.')}부터 지금` : '지금'}));
+  const left = s.handovers.filter(h => h.state === 'accepted' && h.unitIds.includes(unitId) && s.people.find(p => p.id === h.from)?.deptId === me.deptId)
+    .map(h => ({pid: h.from, until: h.date, text: `${h.date.slice(0, 7).replace('-', '.')}까지`}));
+  return (
+    <div className="day">
+      <h3 className="dept">이 자리에 있었던 사람</h3>
+      {now.length + left.length > 0 && (
+        <div className="tenure" role="list">
+          {[...left.slice().sort((a, b) => a.until.localeCompare(b.until)), ...now].map((x, i) => (
+            <div key={x.pid + i} className={`seg${x.until ? '' : ' now'}`} role="listitem">
+              <b>{nameOf(s, x.pid)}</b>
+              <i aria-hidden="true" />
+              <span>{x.text}</span>
+            </div>
           ))}
         </div>
       )}
-
-      <UnitStandard s={s} setS={setS} toast={toast} unitId={id} />
-
-      <div className="day">
-        <h3 className="dept">지난 기록 <span>{noted.length}</span></h3>
-        {recs.length === 0 && <p className="none">남긴 기록이 없습니다</p>}
-        {recs.map(r => (
-          <div key={r.dutyId + r.date + r.by} className="rec">
-            <span className="rd">{r.date.slice(2).replace(/-/g, '.')} · {nameOf(s, r.by)}</span>
-            <span className="rt">{s.duties.find(d => d.id === r.dutyId)?.title}</span>
-            {r.note && <span className="rn">{r.note}</span>}
-          </div>
-        ))}
-      </div>
-
-      <div className="day">
-        <h3 className="dept">이 자리에 있었던 사람</h3>
-        {now.length + left.length > 0 && (
-          <div className="tenure" role="list">
-            {[...left.slice().sort((a, b) => a.until.localeCompare(b.until)), ...now].map((x, i) => (
-              <div key={x.pid + i} className={`seg${'until' in x && x.until ? '' : ' now'}`} role="listitem">
-                <b>{nameOf(s, x.pid)}</b>
-                <i aria-hidden="true" />
-                <span>{x.text}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {now.length + left.length === 0 && <p className="none">{deptName(s, me.deptId)}에서 이 업무를 맡은 사람이 없습니다</p>}
-      </div>
-
-    </section>
+      {now.length + left.length === 0 && <p className="none">{deptName(s, me.deptId)}에서 이 업무를 맡은 사람이 없습니다</p>}
+    </div>
   );
 }
 
@@ -174,7 +143,7 @@ export function DeptPlace({s, open, setOpen, id, onBack}: Ctx & {id: string; onB
  * 처리 순서 — 반복업무마다 적힌 순서를 한곳에서 읽는다(주의 줄 포함). 고치기는 그 반복업무를 눌러 연 오른쪽 판에서 한다.
  * 순서가 없는 반복업무는 이름만 한 줄로 모은다.
  */
-function HowTo({s, duties}: {s: State; duties: Duty[]}) {
+export function HowTo({s, duties}: {s: State; duties: Duty[]}) {
   const has = duties.filter(d => stepsOf(s, d).length), none = duties.filter(d => !stepsOf(s, d).length);
   return (
     <div className="day howto">
@@ -184,7 +153,7 @@ function HowTo({s, duties}: {s: State; duties: Duty[]}) {
       {has.map(d => {
         let n = 0;
         return (
-          <div key={d.id} className="ht">
+          <div key={d.id} className="ht" data-spot={`how:${d.id}`}>
             <h4>{d.title} <span>{ruleLabel(d.rule)}</span></h4>
             <ol>
               {stepsOf(s, d).map((st, i) => st.warn
@@ -204,7 +173,7 @@ function HowTo({s, duties}: {s: State; duties: Duty[]}) {
  * 참고자료 — 지침·서식·시스템 주소. 파일은 올리지 않고 어디 있는지(공유 폴더 경로·문서번호)만 적는다.
  * 맡은 사람만 더하고 뗀다. 우리 조직에 이미 등록된 자료는 골라서 붙인다(같은 자료를 여러 업무가 쓴다).
  */
-function Refs({s, setS, toast, unitId, mine}: Pick<Ctx, 's' | 'setS' | 'toast'> & {unitId: string; mine: boolean}) {
+export function Refs({s, setS, toast, unitId, mine}: Pick<Ctx, 's' | 'setS' | 'toast'> & {unitId: string; mine: boolean}) {
   const list = refsOfUnit(s, unitId), others = otherRefs(s, unitId);
   const [mode, setMode] = useState<'' | 'new' | 'pick'>('');
   const [kind, setKind] = useState<'link' | 'file'>('file');
@@ -271,7 +240,7 @@ function nextOf(m: Map<string, Row[]>, dutyId: string) {
  * 달마다 몰리는 때 — 1~12월 칸, 반복업무가 몰리는 달일수록 진하게(매일·매주는 모든 달 비슷해 뺀다).
  * 글자로 '매월 15일, 분기 시작월 말일…'을 읽지 않아도 바쁜 달이 보인다.
  */
-function YearBeat({duties}: {duties: Duty[]}) {
+export function YearBeat({duties}: {duties: Duty[]}) {
   const y = new Date().getFullYear(), cur = new Date().getMonth();
   const counts = Array.from({length: 12}, (_, m) => {
     const from = ymd(new Date(y, m, 1)), to = ymd(new Date(y, m + 1, 0));

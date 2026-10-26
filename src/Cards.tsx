@@ -3,10 +3,11 @@ import {type Duty, type Step, type Task, type Unit} from './model';
 import {cycleOf, dateLabel, ruleLabel, shortDate} from './schedule';
 import {
   cancelHandover, complete, editSteps, lastNote, occKey, pendingOf, removeTask, setProgress,
-  nameOf, stepsOf, toggleTask, uncomplete, type State, sameDeptIds
+  nameOf, stepsOf, toggleTask, uncomplete, type State, sameDeptIds, deptName, meOf
 } from './store';
 import {dutiesOf} from './ui';
 import {usePlaceNav} from './views/placeNav';
+import {Records} from './views/Place';
 
 type Props = {s: State; setS: (s: State) => void; toast: (m: string, undo?: State) => void; onClose: () => void};
 
@@ -204,5 +205,15 @@ function StepsEditor({steps, onSave, onCancel}: {steps: Step[]; onSave: (s: Step
         <button className="ghost strong" onClick={() => onSave(list.filter(x => x.text.trim()))}>저장</button>
       </div>
     </div>
+  );
+}
+
+/** 지난 기록 — 업무지식에서 과거 처리 사례를 볼 때 오른쪽 판으로(주인은 내 업무). */
+export function RecsCard({s, onClose, unit}: Pick<Props, 's' | 'onClose'> & {unit: Unit}) {
+  return (
+    <aside className="detail" aria-label={`${unit.name} 지난 기록`}>
+      <Head over={unit.name} title="지난 기록" sub={`${deptName(s, meOf(s)?.deptId)}에서 끝내며 남긴 한 줄`} onClose={onClose} />
+      <section><Records s={s} unitId={unit.id} limit={30} head={false} /></section>
+    </aside>
   );
 }

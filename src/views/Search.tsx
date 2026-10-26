@@ -8,7 +8,7 @@ const GROUPS: {id: Hit['group']; label: string}[] = [
   {id: 'step', label: '처리 순서'},
 ];
 
-/** 업무 찾기 결과 — 업무 · 있는 곳 · 그 문장. 누르면 그 업무 화면. 메뉴가 아니라 왼쪽 위 찾기 칸에서 연다. */
+/** 업무 찾기 결과 — 업무 · 있는 곳 · 그 문장. 누르면 그 업무의 업무지식. 메뉴가 아니라 왼쪽 위 찾기 칸에서 연다. */
 export function SearchResults({s, q}: {s: State; q: string}) {
   const goPlace = usePlaceNav();
   const hits = searchWork(s, q);

@@ -28,7 +28,7 @@ export function Home({s, setS, open, setOpen, toast, sel, setSel, onCompose, onS
   const picker = (
     <div className="card empty-units">
       <h2>맡은 업무가 없습니다</h2>
-      <p className="lead">발령으로 새 자리에 왔거나 업무를 모두 넘긴 경우입니다. 받을 인수인계를 먼저 받고, 맡을 업무를 고르면 반복업무가 홈과 달력에 들어옵니다.</p>
+      <p className="lead">발령으로 새 자리에 왔거나 업무를 모두 넘긴 경우입니다. 받을 인수인계를 먼저 받고, 맡을 업무를 고르면 반복업무가 오늘과 달력에 들어옵니다.</p>
       <button className="primary" onClick={onSettle}>자리 잡기</button>
     </div>
   );
