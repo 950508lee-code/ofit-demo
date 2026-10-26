@@ -255,6 +255,39 @@ export const addNotice = (s: State, n: Omit<Notice, 'id' | 'at' | 'read'>): Stat
 export const hasNotice = (s: State, key: string) => s.notices.some(x => x.key === key);
 export const myNotices = (s: State) => s.notices.filter(n => n.to === s.me);
 export const unreadCount = (s: State) => myNotices(s).filter(n => !n.read).length;
+
+/** 내 업무에서 바뀐 것 한 줄 — 누가 언제 무엇을 바꿨는지(이미 저장되는 자료만 모은다, 2026-10-26 오늘 화면 알림 한 줄). */
+export type Change = {key: string; kind: '업무 표준' | '처리 순서' | '업무 안내' | '참고자료' | '부서 방식'; title: string; sub: string; at: string; unitId: string};
+
+/**
+ * 맡은 업무에 최근(기본 14일) 생긴 변화: 업무 표준 승인으로 더해진 반복업무 · 공통 처리 순서 · 우리 부서 업무 안내 · 붙은 참고자료 · 우리 부서 방식.
+ * 내가 한 것은 빼고, 새것부터. 날짜는 앞 10자리(YYYY-MM-DD)로 맞춘다.
+ */
+export function recentChanges(s: State, days = 14): Change[] {
+  const from = addDays(today(), -days), dep = meOf(s)?.deptId;
+  const out: Change[] = [];
+  const keep = (c: Change, by: string) => { if (by !== s.me && c.at >= from) out.push(c); };
+  for (const u of myUnits(s)) {
+    for (const p of s.proposals) {
+      if (p.state === 'approved' && p.decidedAt && (p.unitId === u.id || p.madeUnitId === u.id))
+        keep({key: `p${p.id}`, kind: '업무 표준', title: `${p.duties.map(d => d.title).join(' · ')} 더해짐`, sub: `${u.name} · ${nameOf(s, p.decidedBy)} 승인`, at: p.decidedAt.slice(0, 10), unitId: u.id}, p.decidedBy ?? '');
+    }
+    for (const d of dutiesOfUnit(s, u.id)) {
+      for (const [i, c] of (s.stepHistory[d.id] ?? []).entries())
+        keep({key: `h${d.id}${i}`, kind: '처리 순서', title: `${d.title} 처리 순서 바뀜`, sub: `${u.name} · ${nameOf(s, c.by)}`, at: c.at.slice(0, 10), unitId: u.id}, c.by);
+      const ways = dep ? Object.values(s.deptWays[`${dep}:${d.id}`] ?? {}) : [];
+      const w = ways.sort((a, b) => b.at.localeCompare(a.at))[0];
+      if (w) keep({key: `w${d.id}`, kind: '부서 방식', title: `${d.title} 우리 부서 방식 고침`, sub: `${u.name} · ${nameOf(s, w.by)}`, at: w.at.slice(0, 10), unitId: u.id}, w.by);
+    }
+    const g = dep ? s.guides[`${dep}:${u.id}`] : undefined;
+    if (g) keep({key: `g${u.id}`, kind: '업무 안내', title: `${u.name} 업무 안내 고침`, sub: `${deptName(s, dep)} · ${nameOf(s, g.by)}`, at: g.at.slice(0, 10), unitId: u.id}, g.by);
+    for (const id of s.unitRefs[u.id] ?? []) {
+      const r = s.refs.find(x => x.id === id);
+      if (r) keep({key: `r${u.id}${r.id}`, kind: '참고자료', title: `${r.title} 붙임`, sub: `${u.name} · ${nameOf(s, r.by)}`, at: r.at.slice(0, 10), unitId: u.id}, r.by);
+    }
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
+}
 export const readNotice = (s: State, id: string): State => ({...s, notices: s.notices.map(n => (n.id === id ? {...n, read: true} : n))});
 export const readAll = (s: State): State => ({...s, notices: s.notices.map(n => (n.to === s.me ? {...n, read: true} : n))});
 /** 30일 지난 알림은 정리한다. */

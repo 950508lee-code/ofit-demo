@@ -1,5 +1,6 @@
 import {addDays, dateLabel, HOLIDAYS, parse, weekday} from '../schedule';
-import {addTask, myUnits, today} from '../store';
+import {addTask, meOf, myUnits, today, type State} from '../store';
+import {NoticeTicker} from './Notices';
 import {useEffect} from 'react';
 import {arrival} from '../arrive';
 import type {ComposePreset} from './Compose';
@@ -58,6 +59,8 @@ export function Home({s, setS, open, setOpen, toast, sel, setSel, onCompose, onS
   if (wide) {
     return (
       <section className="list with-input wk">
+        <Hello s={s} />
+        <NoticeTicker s={s} onOpen={() => setOpen({kind: 'notices'})} />
         <div className="cal-h">
           <h2>{days[1].slice(0, 4) === day.slice(0, 4) ? '' : `${days[1].slice(0, 4)}년 `}{dateLabel(days[1]).replace(/ \(.\)$/, '')} – {days[5].slice(5, 7) === days[1].slice(5, 7) ? '' : `${parse(days[5]).getMonth() + 1}월 `}{parse(days[5]).getDate()}일</h2>
           <div className="cal-nav">
@@ -77,6 +80,8 @@ export function Home({s, setS, open, setOpen, toast, sel, setSel, onCompose, onS
 
   return (
     <section className="list with-input">
+      <Hello s={s} />
+      <NoticeTicker s={s} onOpen={() => setOpen({kind: 'notices'})} />
       <div className="week">
         <div className="week-h">
           <b>{label}</b>
@@ -108,6 +113,18 @@ export function Home({s, setS, open, setOpen, toast, sel, setSel, onCompose, onS
       {empty ? picker : <DayList s={s} date={sel} open={open} setOpen={setOpen} />}
       {!empty && quick}
     </section>
+  );
+}
+
+/** 오늘 화면 맨 위 인사말(2026-10-26 사용자) — 이름과 오늘 날짜 · 오늘 남은 할 일 수. 문구는 고정(시간마다 바꾸지 않는다). */
+function Hello({s}: {s: State}) {
+  const day = today();
+  const left = rowsOn(s, day).reduce((n, r) => n + (r.count ? r.count.all - r.count.done : r.done ? 0 : 1), 0);
+  return (
+    <div className="hello">
+      <h1>안녕하세요, {meOf(s)?.name} 님</h1>
+      <p>{dateLabel(day).replace(/ \((.)\)$/, ' $1요일')} · {left ? `오늘 남은 할 일 ${left}개` : '오늘 할 일을 모두 끝냈습니다'}</p>
+    </div>
   );
 }
 

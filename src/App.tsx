@@ -164,7 +164,7 @@ export default function App() {
       if (n.kind === 'standard') return n.unitId && !wait ? goPlace({kind: 'unit', id: n.unitId}) : go('know');
       const to: View = n.go === 'me' ? 'work' : 'home';
       go(to, () => { if (to === 'home') setSel(today()); if (n.dispatchId) setOpen({kind: 'dispatch', id: n.dispatchId}); });
-    }} />;
+    }} onUnit={id => goPlace({kind: 'unit', id})} />;
   }
   if (open?.kind === 'recs') {
     const u = unitById(s, open.id);
