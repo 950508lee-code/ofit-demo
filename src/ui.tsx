@@ -78,18 +78,16 @@ export function UnitPicker({s, org, title, lead, doneLabel, onDone, back, inline
         </div>
       ))}
       {onCreate && (
-        <button className="textbtn more-link" onClick={onCreate}>찾는 업무가 없나요? 업무 만들기</button>
+        <p className="more-line">찾는 업무가 없나요? <button className="textbtn more-link" onClick={onCreate}>업무 추가</button></p>
       )}
       <div className="flow-foot">
-        {manage ? (
-          <button className="primary wide" disabled={!adds.length && !drops.length} onClick={() => onDone(picked)}>
-            {adds.length || drops.length ? [adds.length && `${adds.length}개 새로 맡기`, drops.length && `${drops.length}개 빼기`].filter(Boolean).join(' · ') : '바꿀 업무를 고르세요'}
-          </button>
-        ) : (
-          <button className="primary wide" disabled={picked.length === 0} onClick={() => onDone(picked)}>
-            {picked.length > 0 ? `${picked.length}개 ${doneLabel}` : '업무를 고르세요'}
-          </button>
-        )}
+        {manage ? <>
+          <p className="foot-sum">{adds.length || drops.length ? [adds.length && `${adds.length}개 새로 맡음`, drops.length && `${drops.length}개 뺌`].filter(Boolean).join(' · ') : '바꿀 업무를 고르세요'}</p>
+          <button className="primary wide" disabled={!adds.length && !drops.length} onClick={() => onDone(picked)}>{doneLabel}</button>
+        </> : <>
+          <p className="foot-sum">{picked.length > 0 ? `${picked.length}개 고름` : '업무를 고르세요'}</p>
+          <button className="primary wide" disabled={picked.length === 0} onClick={() => onDone(picked)}>{doneLabel}</button>
+        </>}
       </div>
     </div>
   );

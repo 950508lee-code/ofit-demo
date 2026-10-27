@@ -17,9 +17,10 @@ export type ComposePreset = {title?: string; date?: string; time?: string; rule?
  * 나: 내 할 일에만.
  * 부서: 받을 부서 + 받는 사람(부서 전체 / 특정 업무 담당자). 받는 사람의 홈·달력에 바로 들어간다.
  */
-export function Compose({s, setS, preset, onClose, onDone}: {
+export function Compose({s, setS, preset, onClose, onDone, onDelete}: {
   s: State; setS: (s: State) => void; preset: ComposePreset; onClose: () => void;
   onDone: (msg: string, date: string, to?: {sent?: boolean}) => void;
+  onDelete?: () => void; // 편집할 때만. 삭제는 읽는 판이 아니라 편집 창 안에(2026-10-26 사용자 판정)
 }) {
   const me = meOf(s)!;
   const [title, setTitle] = useState(preset.title ?? '');
@@ -91,7 +92,7 @@ export function Compose({s, setS, preset, onClose, onDone}: {
   ];
 
   return (
-    <Modal title={preset.editId ? '할 일 고치기' : target === 'dept' ? '부서에 요청 보내기' : '일정 등록'} onCancel={close} closing={closing}>
+    <Modal title={preset.editId ? '할 일 편집' : target === 'dept' ? '부서에 요청 보내기' : '일정 등록'} onCancel={close} closing={closing}>
       <div className={`compose${more ? ' more' : ''}`} ref={box} onScroll={check}>
         <label className="fld"><span>제목</span>
           <input autoFocus value={title} onChange={e => { setTitle(e.target.value); setMoved(''); }} onBlur={pull}
@@ -170,8 +171,9 @@ export function Compose({s, setS, preset, onClose, onDone}: {
 
       </div>
       <div className="mb">
+        {preset.editId && onDelete && <button className="textbtn mb-del" onClick={onDelete}>삭제</button>}
         <button className="ghost" onClick={close}>취소</button>
-        <button className="primary" disabled={!ok} onClick={submit}>{preset.editId ? '고치기' : target === 'me' ? '넣기' : '보내기'}</button>
+        <button className="primary" disabled={!ok} onClick={submit}>{target === 'me' ? '저장' : '보내기'}</button>
       </div>
     </Modal>
   );

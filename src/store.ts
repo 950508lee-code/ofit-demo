@@ -26,8 +26,8 @@ export type State = {
   refs: Ref[]; // 참고자료(조직 안에서 같이 쓴다)
   unitRefs: Record<string, string[]>; // 단위업무 id → 붙인 참고자료 id(순서대로)
   guides: Record<string, Guide>; // '부서:단위업무' → 업무 안내(부서마다 따로)
-  deptWays: Record<string, Record<string, DeptWay>>; // '부서:반복업무' → 단계 id('_end' = 공통 순서 끝에 더 하는 일) → 부서 운영 방식
-  stepHistory: Record<string, StepChange[]>; // 반복업무 id → 공통 처리 순서가 바뀐 기록
+  deptWays: Record<string, Record<string, DeptWay>>; // '부서:반복업무' → 단계 id('_end' = 끝에 더 하는 일) → 부서 운영 방식(새로 쓰지 않음, 이전 기록으로 읽기만)
+  stepHistory: Record<string, StepChange[]>; // 반복업무 id → 처리방법 판(편집마다 전·후 전체, 복원도 한 판)
   knowScope: Record<string, 'org'>; // '부서:단위업무' → 조직 전체 공개(없으면 우리 부서만, 2026-10-26 사용자 판정)
   moves: Move[]; // 부서 옮김 기록
   ver: number; // 저장 모양 판(바뀌면 migrate 가 옮긴다. 지우지 않는다)
@@ -257,7 +257,7 @@ export const myNotices = (s: State) => s.notices.filter(n => n.to === s.me);
 export const unreadCount = (s: State) => myNotices(s).filter(n => !n.read).length;
 
 /** 내 업무에서 바뀐 것 한 줄 — 누가 언제 무엇을 바꿨는지(이미 저장되는 자료만 모은다, 2026-10-26 오늘 화면 알림 한 줄). */
-export type Change = {key: string; kind: '업무 표준' | '처리 순서' | '업무 안내' | '참고자료' | '부서 방식'; title: string; sub: string; at: string; unitId: string};
+export type Change = {key: string; kind: '업무 표준' | '처리방법' | '업무 안내' | '참고자료' | '부서 방식'; title: string; sub: string; at: string; unitId: string};
 
 /**
  * 맡은 업무에 최근(기본 14일) 생긴 변화: 업무 표준 승인으로 더해진 반복업무 · 공통 처리 순서 · 우리 부서 업무 안내 · 붙은 참고자료 · 우리 부서 방식.
@@ -274,7 +274,7 @@ export function recentChanges(s: State, days = 14): Change[] {
     }
     for (const d of dutiesOfUnit(s, u.id)) {
       for (const [i, c] of (s.stepHistory[d.id] ?? []).entries())
-        keep({key: `h${d.id}${i}`, kind: '처리 순서', title: `${d.title} 처리 순서 바뀜`, sub: `${u.name} · ${nameOf(s, c.by)}`, at: c.at.slice(0, 10), unitId: u.id}, c.by);
+        keep({key: `h${d.id}${i}`, kind: '처리방법', title: `${d.title} 처리방법 ${c.restored ? '복원' : '편집'}`, sub: `${u.name} · ${nameOf(s, c.by)}`, at: c.at.slice(0, 10), unitId: u.id}, c.by);
       const ways = dep ? Object.values(s.deptWays[`${dep}:${d.id}`] ?? {}) : [];
       const w = ways.sort((a, b) => b.at.localeCompare(a.at))[0];
       if (w) keep({key: `w${d.id}`, kind: '부서 방식', title: `${d.title} 우리 부서 방식 고침`, sub: `${u.name} · ${nameOf(s, w.by)}`, at: w.at.slice(0, 10), unitId: u.id}, w.by);
@@ -427,16 +427,16 @@ export const saveGuide = (s: State, unitId: string, html: string): State => {
   return {...s, guides: html.trim() ? {...rest, [k]: {html, by: s.me, at: new Date().toISOString()}} : rest};
 };
 
-/* ── 처리 순서: 공통 기준은 관리자만, 현장은 부서 운영 방식으로(2026-10-26 사용자 판정, docs/KNOWLEDGE.md 3-2) ── */
+/* ── 처리방법: 하나의 공동 문서(2026-10-26 사용자 판정, docs/COEDIT.md) ──
+ * 조직 구성원 누구나 바로 편집(승인 없음) · 편집마다 판이 남고(stepHistory: 전·후 전체) · 이전 판으로 복원(복원도 새 판).
+ * 부서 운영 방식(deptWays)은 새로 쓰지 않는다 — 이미 쓴 것은 지우지 않고 읽기로만 보인다(정리는 나중에, 자동으로 합치지 않음). */
 /** 단계의 오래가는 id. 처음 등록된 순서는 순번으로 짓는다. */
 export const stepIdOf = (d: Duty, st: Step, i: number) => st.id ?? `${d.id}:${i}`;
-const seriesOfDuty = (s: State, d: Duty) => d.unitIds.map(id => unitById(s, id)?.series).filter((x): x is string => !!x);
-/** 공통 처리 순서를 고칠 수 있는가 — 그 업무 분류의 관리자(분류 관리자·총괄 관리자)만. */
-export const canEditCommon = (s: State, d: Duty) => seriesOfDuty(s, d).some(x => canApprove(s, x));
-/** 우리 부서 운영 방식을 적을 수 있는가 — 그 반복업무가 든 업무를 맡은 사람. */
-export const canEditWay = (s: State, d: Duty) => !!meOf(s)?.deptId && d.unitIds.some(id => holdsOf(s, s.me).includes(id));
-/** 공통 처리 순서 고치기(관리자). 바뀌지 않은 단계는 id를 이어받아 부서 운영 방식이 그대로 붙어 있게 하고, 변경 이력을 남긴다. */
-export function editCommonSteps(s: State, dutyId: string, next: Step[]): State {
+/** 처리방법을 편집할 수 있는가 — 같은 조직의 구성원 누구나(맡았는지와 상관없이). */
+export const canEditCommon = (s: State, d: Duty) => !!meOf(s) && d.unitIds.some(id => unitById(s, id)?.org === orgOf(s));
+/** 처리방법 편집(누구나, 바로 반영). 바뀌지 않은 단계는 id를 이어받아 남아 있는 부서 운영 방식이 그대로 붙어 있게 하고, 판을 남긴다.
+ *  restored: 이전 판으로 되돌린 편집이면 그 판의 시각('first' = 처음 등록 자료). */
+export function editCommonSteps(s: State, dutyId: string, next: Step[], restored?: string): State {
   const d = dutyById(s, dutyId);
   if (!d || !canEditCommon(s, d)) return s;
   const before = stepsOf(s, d).map((st, i) => ({...st, id: stepIdOf(d, st, i)}));
@@ -449,28 +449,11 @@ export function editCommonSteps(s: State, dutyId: string, next: Step[]): State {
     return {...st, id};
   });
   if (JSON.stringify(before.map(x => [x.text, !!x.warn, x.form ?? ''])) === JSON.stringify(after.map(x => [x.text, !!x.warn, x.form ?? '']))) return s;
-  const ch: StepChange = {by: s.me, at: new Date().toISOString(), before, after};
+  const ch: StepChange = {by: s.me, at: new Date().toISOString(), before, after, ...(restored ? {restored} : {})};
   return {...s, stepEdits: {...s.stepEdits, [dutyId]: after}, stepHistory: {...s.stepHistory, [dutyId]: [...(s.stepHistory[dutyId] ?? []), ch]}};
 }
 const wayKey = (deptId: string, dutyId: string) => `${deptId}:${dutyId}`;
 export const waysOf = (s: State, deptId: string | undefined, dutyId: string) => (deptId ? s.deptWays[wayKey(deptId, dutyId)] : undefined) ?? {};
-/** 우리 부서 운영 방식 저장(단계 id → 글, 빈 글은 지움). 글이 그대로인 단계는 쓴 사람·날짜도 그대로 둔다. */
-export function saveDeptWays(s: State, dutyId: string, texts: Record<string, string>): State {
-  const d = dutyById(s, dutyId), dep = meOf(s)?.deptId;
-  if (!d || !dep || !canEditWay(s, d)) return s;
-  const old = waysOf(s, dep, dutyId);
-  const common = stepsOf(s, d).map((st, i) => ({id: stepIdOf(d, st, i), text: st.text}));
-  const now = new Date().toISOString();
-  const next: Record<string, DeptWay> = {};
-  for (const [k, t] of Object.entries(texts)) {
-    const text = t.trim();
-    if (!text) continue;
-    const base = k === '_end' ? '' : common.find(c => c.id === k)?.text ?? old[k]?.base ?? '';
-    next[k] = old[k] && old[k].text === text ? old[k] : {text, base, by: s.me, at: now};
-  }
-  const {[wayKey(dep, dutyId)]: _x, ...rest} = s.deptWays;
-  return {...s, deptWays: Object.keys(next).length ? {...rest, [wayKey(dep, dutyId)]: next} : rest};
-}
 /** 부서 운영 방식이 쓸 때와 공통 단계가 달라졌는가(단계가 바뀌었거나 없어짐). 지우지 않고 '확인 필요'로만 보인다. */
 export const wayStale = (s: State, d: Duty, stepId: string, w: DeptWay) => {
   if (stepId === '_end') return false;
@@ -638,7 +621,7 @@ export const setSeriesAdmin = (s: State, series: string, pid: string): State => 
 });
 const holdersOf = (s: State, unitId: string) => s.people.filter(p => holdsOf(s, p.id).includes(unitId)).map(p => p.id);
 /** 받침 있으면 a, 없으면 b — '1개가', '…관리'를'. 따옴표·괄호는 건너뛰고 본다. */
-const josa = (w: string, a: string, b: string) => {
+export const josa = (w: string, a: string, b: string) => {
   const c = w.replace(/['")\]\s]+$/, '').slice(-1).charCodeAt(0) - 0xac00;
   return c >= 0 && c <= 11171 && c % 28 !== 0 ? a : b;
 };

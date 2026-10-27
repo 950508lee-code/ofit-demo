@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {dateLabel, ruleLabel, ymd} from '../schedule';
 import {Cells, DueLine} from './shapes';
+import {XClose, closeKeeping} from '../Cards';
 import {
   completeDispatch, deptAndBelow, deptDoneBy, deptName, deptOf, dispatchById, dispatchProgress, doneForMe, nameOf, recipientsOf, seriesById, stopSeries, undoDispatch, type State,
 } from '../store';
@@ -35,7 +36,7 @@ export function DispatchCard({s, setS, toast, onClose, id}: {
           {sr && <p className="series">반복 · {ruleLabel(sr.rule)}{sr.stopped ? ` · ${sr.stopped.slice(5).replace('-', '.')}에 멈춤` : ' · 이번 회차'}</p>}
           <DueLine from={prev ?? ymd(new Date(d.sentAt))} fromLabel={prev ? '지난 회차' : '받음'} due={d.due} today={ymd(new Date())} done={mine ? prog.done === prog.all && prog.all > 0 : !!myDone} />
         </div>
-        <button className="textbtn x" onClick={onClose}>닫기</button>
+        <XClose onClose={closeKeeping(note, onClose)} />
       </div>
 
       {d.body && (
@@ -71,7 +72,7 @@ export function DispatchCard({s, setS, toast, onClose, id}: {
       ) : null}
       {mine && sr && !sr.stopped && (
         <div className="act">
-          <button className="ghost" onClick={() => { setS(stopSeries(s, sr.id)); toast('반복을 멈췄습니다. 아직 아무도 손대지 않은 앞으로의 회차는 지웠습니다', s); }}>반복 멈추기</button>
+          <button className="ghost" onClick={() => { setS(stopSeries(s, sr.id)); toast('반복을 중지했습니다. 아직 아무도 손대지 않은 앞으로의 회차는 삭제했습니다', s); }}>반복 중지</button>
         </div>
       )}
 

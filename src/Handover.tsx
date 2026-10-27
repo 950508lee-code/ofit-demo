@@ -29,7 +29,7 @@ export function HandoverFlow({s, preselect, onCancel, onSend}: {
 
   return (
     <div className="flow">
-      <button className="textbtn close" onClick={onCancel}>닫기</button>
+      <button className="textbtn close" onClick={onCancel}>취소</button>
       <h1>인수인계</h1>
       <p className="lead">고른 업무와 할 일이 받는 사람에게 그대로 옮겨 갑니다</p>
 
@@ -79,9 +79,8 @@ export function HandoverFlow({s, preselect, onCancel, onSend}: {
       <textarea className="note" rows={3} placeholder="다음 담당자가 알아야 할 것" value={note} onChange={e => setNote(e.target.value)} />
 
       <div className="flow-foot">
-        <button className="primary wide" disabled={!to || total === 0} onClick={() => onSend(to, unitIds, taskIds, note.trim())}>
-          {!to ? '받을 사람을 고르세요' : total === 0 ? '넘길 것을 고르세요' : `보내기 · 업무 ${unitIds.length}개${taskIds.length ? ` · 일정 ${taskIds.length}개` : ''}`}
-        </button>
+        <p className="foot-sum">{!to ? '받을 사람을 고르세요' : total === 0 ? '넘길 것을 고르세요' : `업무 ${unitIds.length}개${taskIds.length ? ` · 일정 ${taskIds.length}개` : ''}`}</p>
+        <button className="primary wide" disabled={!to || total === 0} onClick={() => onSend(to, unitIds, taskIds, note.trim())}>보내기</button>
       </div>
     </div>
   );

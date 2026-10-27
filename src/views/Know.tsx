@@ -1,10 +1,11 @@
 import {useEffect, useRef, useState, type CSSProperties} from 'react';
 import {deptName, dutiesOfUnit, holdsOf, meOf, nameOf, orgOf, otherCases, refsOfUnit, stepIdOf, stepsOf, unitById, unitsOfOrg, type State} from '../store';
 import type {Ctx} from './common';
-import {Cells} from './shapes';
 import {GuideBody, GuideBox} from './Guide';
-import {HowTo, Refs, Tenure, notedOf} from './Place';
-import {NewUnitModal, StandardCard, UnitStandard} from './Standard';
+import {DutyIndex, Refs, Tenure, notedOf} from './Place';
+import {DutyDoc} from './DutyDoc';
+import {NewUnitModal, StandardCard, StdHistory, stdDone} from './Standard';
+import {Fold} from './Fold';
 import {placeColor} from './placeColor';
 import {useWorkNav, type Spot} from './placeNav';
 import {showSpot} from './spot';
@@ -18,6 +19,8 @@ import {showSpot} from './spot';
 export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id: string | null; setId: (id: string | null) => void; spot?: Spot | null}) {
   const goWork = useWorkNav();
   const [making, setMaking] = useState(false);
+  // 열어 둔 반복업무 문서. 찾기·할 일 상세에서 'duty:id'·'step:id:n'으로 오면 그 문서를 연다
+  const [docDuty, setDocDuty] = useState<string | null>(null);
   const root = useRef<HTMLElement>(null);
   const all = unitsOfOrg(s, orgOf(s));
   const held = holdsOf(s, s.me);
@@ -26,6 +29,10 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
   const curId = id ?? all.find(u => held.includes(u.id))?.id ?? all[0]?.id;
   const u = curId ? unitById(s, curId) : undefined;
   // 찾기 결과에서 왔으면 화면 전환이 끝난 뒤 그 자리로 옮기고 찾은 말을 칠한다
+  useEffect(() => {
+    const m = spot?.anchor.match(/^(?:duty|step):([^:]+)/);
+    setDocDuty(m ? m[1] : null);
+  }, [spot, id]);
   useEffect(() => {
     if (!spot || !root.current) return;
     let undo = () => {};
@@ -38,6 +45,9 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
   const duties = u ? dutiesOfUnit(s, u.id) : [];
   const holders = u ? s.people.filter(p => p.deptId === me.deptId && holdsOf(s, p.id).includes(u.id)) : [];
   const noted = u ? notedOf(s, u.id) : [];
+  const doc = docDuty && u ? duties.find(d => d.id === docDuty) : undefined;
+  const openDoc = (dutyId: string) => { setDocDuty(dutyId); window.scrollTo({top: 0}); };
+  const closeDoc = () => { setDocDuty(null); window.scrollTo({top: 0}); };
 
   return (
     <div className={`know${id ? ' reading' : ''}`}>
@@ -52,7 +62,7 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
             </optgroup>
           ))}
         </select>
-        <button className="textbtn" onClick={() => setMaking(true)}>업무 만들기</button>
+        <button className="textbtn" onClick={() => setMaking(true)}>+ 업무 추가</button>
       </div>
       <div className="know-grid">
         <nav className="know-list" aria-label="업무 목록">
@@ -61,46 +71,50 @@ export function Know({s, setS, open, setOpen, toast, id, setId, spot}: Ctx & {id
             <div key={x} className="kl-g">
               <h3>{x}</h3>
               {all.filter(v => v.series === x).map(v => (
-                <button key={v.id} className={v.id === curId ? 'on' : ''} aria-current={v.id === curId ? 'page' : undefined} onClick={() => setId(v.id)}>
+                <button key={v.id} className={v.id === curId ? 'on' : ''} aria-current={v.id === curId ? 'page' : undefined} onClick={() => { setId(v.id); setDocDuty(null); }}>
                   <span>{v.name}</span>{held.includes(v.id) && <small>맡음</small>}
                 </button>
               ))}
             </div>
           ))}
-          <button className="textbtn kl-new" onClick={() => setMaking(true)}>업무 만들기</button>
+          <button className="textbtn kl-new" onClick={() => setMaking(true)}>+ 업무 추가</button>
         </nav>
 
-        {u && (
+        {u && doc && (
+          <div ref={root as unknown as React.RefObject<HTMLDivElement>} className="doc-wrap">
+            <div className="flow-back m-only-block"><button className="textbtn" onClick={() => setId(null)}>업무 목록</button></div>
+            <DutyDoc key={doc.id} s={s} setS={setS} toast={toast} setOpen={setOpen} duty={doc} unitId={u.id} onBack={closeDoc} onGo={setDocDuty} />
+          </div>
+        )}
+        {u && !doc && (
           <article ref={root} className="list place know-doc" style={{'--pc': placeColor(s, {kind: 'unit', id: u.id})} as CSSProperties}>
             <div className="flow-back m-only-block"><button className="textbtn" onClick={() => setId(null)}>업무 목록</button></div>
             <div className="place-h">
               <div>
                 <p className="over">업무지식 · {u.series}</p>
                 <h2><span className="swatch" aria-hidden="true" />{u.name}</h2>
-                <p className="sub">반복업무 {duties.length}개 · {holders.length ? `${deptName(s, me.deptId)}에서 ${holders.map(p => p.name).join(', ')} 님이 맡음` : `${deptName(s, me.deptId)}에서 맡은 사람 없음`}</p>
-                <Cells n={duties.filter(d => stepsOf(s, d).length).length} of={duties.length} label="처리 순서 적은 일" />
+                <p className="sub">{holders.length ? `${deptName(s, me.deptId)}에서 ${holders.map(p => p.name).join(', ')} 님이 맡음` : `${deptName(s, me.deptId)}에서 맡은 사람 없음`}</p>
               </div>
               {mine && <button className="ghost" onClick={() => goWork(u.id)}>내 업무에서 보기</button>}
             </div>
 
+            {/* 업무 문서(색인): 반복업무 목록이 본문 첫 칸(누르면 그 반복업무 문서), 그 아래 업무 안내 · 참고자료. 처리방법은 반복업무 문서에만 있다(복제하지 않는다) */}
+            <DutyIndex key={'dix' + u.id} s={s} setS={setS} toast={toast} unitId={u.id} onPick={openDoc} />
             <GuideBox s={s} setS={setS} toast={toast} unitId={u.id} />
-            <HowTo s={s} setS={setS} toast={toast} duties={duties} />
-            <Refs s={s} setS={setS} toast={toast} unitId={u.id} mine={mine} />
+            <Refs key={'refs' + u.id} s={s} setS={setS} toast={toast} unitId={u.id} mine={mine} />
             <OtherCases key={u.id} s={s} unitId={u.id} />
-            <UnitStandard s={s} setS={setS} toast={toast} unitId={u.id} />
 
-            <div className="day">
-              <div className="sec-h">
-                <h3 className="dept">지난 기록 <span>{noted.length}</span></h3>
-                {noted.length > 0 && <button className="textbtn" aria-pressed={open?.kind === 'recs' && open.id === u.id}
-                  onClick={() => setOpen({kind: 'recs', id: u.id})}>보기</button>}
-              </div>
+            {/* 부가 정보는 접는다(제목은 늘 보여 어디 있는지 안다) — 지난 기록 · 이 자리에 있었던 사람 · 반복업무 변경 기록 */}
+            <Fold key={'r' + u.id} title="지난 기록" count={noted.length}>
               {noted.length === 0
                 ? <p className="none">남긴 기록이 없습니다</p>
-                : <p className="rec-last">가장 최근 {noted[0].date.slice(2).replace(/-/g, '.')} · {nameOf(s, noted[0].by)} · {s.duties.find(d => d.id === noted[0].dutyId)?.title}</p>}
-            </div>
-
-            <Tenure s={s} unitId={u.id} />
+                : <div className="sec-h">
+                    <p className="rec-last">가장 최근 {noted[0].date.slice(2).replace(/-/g, '.')} · {nameOf(s, noted[0].by)} · {s.duties.find(d => d.id === noted[0].dutyId)?.title}</p>
+                    <button className="textbtn" aria-pressed={open?.kind === 'recs' && open.id === u.id} onClick={() => setOpen({kind: 'recs', id: u.id})}>보기</button>
+                  </div>}
+            </Fold>
+            <Fold key={'t' + u.id} title="이 자리에 있었던 사람"><Tenure s={s} unitId={u.id} head={false} /></Fold>
+            {stdDone(s, u.id).length > 0 && <Fold key={'h' + u.id} title="반복업무 변경 기록" count={stdDone(s, u.id).length}><StdHistory s={s} unitId={u.id} /></Fold>}
           </article>
         )}
       </div>
@@ -134,9 +148,9 @@ function OtherCases({s, unitId}: {s: State; unitId: string}) {
             </div>
           )}
           <div className="oc">
-            <p className="oc-h"><b>{deptName(s, cur.deptId)} 운영 방식</b>{cur.at && <span>{md(cur.at)} 고침</span>}</p>
+            <p className="oc-h"><b>{deptName(s, cur.deptId)} 운영 방식</b>{cur.at && <span>{md(cur.at)} 편집</span>}</p>
             <p className="oc-note">{deptName(s, cur.deptId)}에서 실제로 쓰는 방법입니다. 공통 기준이 아니며 다른 부서에 그대로 맞지 않을 수 있습니다.</p>
-            {cur.guide && <><p className="oc-sub">업무 안내 · {md(cur.guide.at)} {nameOf(s, cur.guide.by)} 고침</p><GuideBody html={cur.guide.html} refs={refsOfUnit(s, unitId)} spot={false} /></>}
+            {cur.guide && <><p className="oc-sub">업무 안내 · {md(cur.guide.at)} {nameOf(s, cur.guide.by)} 편집</p><GuideBody html={cur.guide.html} refs={refsOfUnit(s, unitId)} spot={false} /></>}
             {cur.ways.length > 0 && <p className="oc-sub">처리 순서에서 다르게 하는 것</p>}
             {cur.ways.map(({duty, ways}) => (
               <div key={duty.id} className="oc-way">

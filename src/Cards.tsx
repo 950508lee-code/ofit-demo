@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {type Duty, type Task, type Unit} from './model';
 import {cycleOf, dateLabel, ruleLabel, shortDate} from './schedule';
 import {
-  cancelHandover, complete, lastNote, occKey, pendingOf, removeTask, setProgress,
+  cancelHandover, complete, lastNote, refsOfUnit, occKey, pendingOf, setProgress,
   nameOf, stepsOf, toggleTask, uncomplete, type State, recordOf, recordsOfDuty, deptName, meOf
 } from './store';
 import {dutiesOf} from './ui';
@@ -20,51 +20,72 @@ export function Head({over, title, sub, onClose}: {over?: string; title: string;
         <h2>{title}</h2>
         <p className="when">{sub}</p>
       </div>
-      <button className="textbtn x" onClick={onClose}>닫기</button>
+      <XClose onClose={onClose} />
     </div>
   );
 }
+
+/** 판 닫기 — 오른쪽 위 ✕(2026-10-26 사용자 판정). 마우스를 올리면 '닫기', 화면 읽기 프로그램에도 '닫기'. */
+export function XClose({onClose}: {onClose: () => void}) {
+  return (
+    <button className="xbtn" onClick={onClose} aria-label="닫기" title="닫기">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+    </button>
+  );
+}
+
+/** 적어 둔 한 줄이 있으면 닫기 전에 묻는다(저장하지 않은 입력을 말없이 버리지 않는다). */
+export const closeKeeping = (typed: string, onClose: () => void) => () => {
+  if (!typed.trim() || confirm('적은 내용이 저장되지 않았습니다. 닫을까요?')) onClose();
+};
 
 /** 업무 카드 — 언제(머리), 어떻게, 지난번, 완료. 순서는 처음엔 비어 있고 일하면서 남긴다. */
 export function DutyCard({s, setS, toast, onClose, duty, date}: Props & {duty: Duty; date: string}) {
   const rec = recordOf(s, duty.id, date);
   const steps = stepsOf(s, duty);
   const checks = rec ? steps.map(() => true) : (s.progress[occKey(duty.id, date)] ?? steps.map(() => false));
-  const past = recordsOfDuty(s, duty.id).filter(r => r.date !== date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   const hand = duty.unitIds.map(id => lastNote(s, id)).find(Boolean);
+  const memo = [
+    ...recordsOfDuty(s, duty.id).filter(r => r.date !== date && r.note.trim()).map(r => ({date: r.date, by: r.by, note: r.note.trim(), hand: false})),
+    ...(hand?.note?.trim() ? [{date: hand.date, by: hand.from, note: hand.note.trim(), hand: true}] : []),
+  ].sort((a, b) => b.date.localeCompare(a.date))[0];
   const units = s.units.filter(u => duty.unitIds.includes(u.id)).map(u => u.name).join(' · ');
+  const refs = refsOfUnit(s, duty.unitIds[0]);
   const [note, setNote] = useState('');
   const goPlace = usePlaceNav();
 
   return (
     <aside className="detail" aria-label={duty.title}>
-      <Head over={units} title={duty.title} sub={`${dateLabel(date)} · ${ruleLabel(duty.rule)}`} onClose={onClose} />
-      <p className="lockline">이름·주기는 <button className="textbtn" onClick={() => goPlace({kind: 'unit', id: duty.unitIds[0]})}>{units} 업무 표준</button>에서 바꿉니다</p>
+      <Head over={units} title={duty.title} sub={`${dateLabel(date)} · ${ruleLabel(duty.rule)}`} onClose={closeKeeping(note, onClose)} />
+      <p className="lockline"><button className="textbtn link" onClick={() => goPlace({kind: 'unit', id: duty.unitIds[0]}, {q: '', anchor: `duty:${duty.id}`})}>업무지식에서 보기</button></p>
 
       <section>
-        <div className="sh"><h4>어떻게</h4></div>
+        <div className="sh"><h4>처리방법</h4></div>
         <StepsBlock s={s} setS={setS} toast={toast} duty={duty}
           check={{checks, done: !!rec, onToggle: i => setS(setProgress(s, duty.id, date, steps.map((_, j) => (j === i ? !checks[j] : !!checks[j]))))}} />
-        {duty.basis && <p className="basis">근거 · {duty.basis}</p>}
+        {duty.basis && <div className="basis" role="note"><b>관련 근거</b><small>공식 규정·지침</small><p>{duty.basis}</p></div>}
       </section>
 
-      {(past.length > 0 || hand) && (
+      {/* 지난 처리 메모 — 가장 최근의 실제 메모 1건(빈 메모는 빼고, 인수인계하며 남긴 말도 후보). 없으면 칸을 두지 않는다.
+          전체 기록은 반복업무 문서의 '지난 수행 기록'에서(2026-10-26 사용자 판정: 지난 맥락은 접지 않고 바로, 하나만) */}
+      {memo && (
+        <section className="memo-last">
+          <h4>지난 처리 메모</h4>
+          <p className="hd">{shortDate(memo.date)} · {nameOf(s, memo.by)}{memo.hand ? ' · 인수인계하며 남긴 말' : ''}</p>
+          <p className="mq">{memo.note}</p>
+        </section>
+      )}
+
+      {/* 참고자료 — 지금 할 일에 필요한 것만 가져와 읽기만(추가·편집은 반복업무 문서에서). 없으면 칸을 두지 않는다 */}
+      {refs.length > 0 && (
         <section>
-          <h4>지난번</h4>
-          {hand && (
-            <div className="hand">
-              <span className="hd">{nameOf(s, hand.from)} 님이 인수인계하며 남긴 말</span>
-              <p>{hand.note}</p>
-            </div>
-          )}
-          <ul className="hist">
-            {past.map(r => (
-              <li key={r.date}>
-                <span className="hd">{shortDate(r.date)} · {nameOf(s, r.by)}</span>
-                {r.note && <span>{r.note}</span>}
-              </li>
-            ))}
-          </ul>
+          <h4>참고자료</h4>
+          {refs.map(r => (
+            <p key={r.id} className="ref-line">
+              {r.kind === 'link' ? <a href={r.where} target="_blank" rel="noreferrer">{r.title}</a> : <b>{r.title}</b>}
+              <small>{r.where}</small>
+            </p>
+          ))}
         </section>
       )}
 
@@ -114,8 +135,7 @@ export function TaskCard({s, setS, toast, onClose, task, date, onEdit}: Props & 
     <aside className="detail" aria-label={task.title}>
       <Head title={task.title} sub={when} onClose={onClose} />
       <div className="act">
-        <button className="ghost" onClick={() => { setS(removeTask(s, task.id)); onClose(); toast(task.rule ? '반복 할 일을 모두 지웠습니다' : '지웠습니다', s); }}>지우기</button>
-        <button className="ghost" onClick={onEdit}>고치기</button>
+        <button className="ghost" onClick={onEdit}>편집</button>
         <button className={done ? 'ghost' : 'primary'} onClick={() => { setS(toggleTask(s, task.id, date)); if (!done) toast('완료했습니다', s); }}>{done ? '완료 취소' : '완료'}</button>
       </div>
     </aside>
@@ -149,7 +169,7 @@ export function UnitPanel({s, setS, toast, onClose, unit, onGive}: Props & {unit
             <p className="wait">{nameOf(s, pending.to)} 님이 받기를 기다리는 중</p>
             <button className="ghost" onClick={() => { setS(cancelHandover(s, pending.id)); toast('인수인계를 취소했습니다'); }}>인수인계 취소</button>
           </>
-        ) : <button className="ghost wide" onClick={onGive}>인수인계 하기</button>}
+        ) : <button className="ghost wide" onClick={onGive}>인수인계</button>}
       </div>
     </aside>
   );

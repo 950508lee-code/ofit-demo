@@ -12,11 +12,11 @@ writeFileSync(process.argv[2], JSON.stringify([
   {name: 'x0', url: 'http://localhost:5180/', loadWait: 1500},
   s('x1', `localStorage.clear(); location.reload(); return 1;`, {wait: 4000}),
   s('x2', `${signup('박공단', '노원지사', '예산·회계')}
-    nav('내 업무'); await wait(300); click('인수인계 하기'); await wait(400);
+    nav('내 업무'); await wait(300); $$('button').find(b => b.innerText.trim() === '인수인계').click(); await wait(400);
     $$('label.choice').find(l => l.innerText.startsWith('김건강')).click(); $$('label.choice').find(l => l.innerText.startsWith('예산·회계')).click();
     $('.flow .primary.wide').click(); await wait(500);
     who(); await wait(200); click('로그아웃'); await wait(300); ${signup('이광진', '광진지사', '민원 응대')}
-    await logoutTo('김건강'); nav('내 업무'); await wait(300); click('부서 옮기기'); await wait(400);
+    await logoutTo('김건강'); who(); await wait(300); click('부서 이동'); await wait(400);
     const sels = $$('.sort-row select'); const names = $$('.sort-row b').map(b => b.innerText);
     sels.forEach((sel, i) => setEl(sel, names[i] === '예산·회계' ? [...sel.options].find(o => o.text.startsWith('이광진')).value : 'drop'));
     await wait(200); $('.flow-foot .primary').click(); await wait(500);

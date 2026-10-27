@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {canEditGuide, deptName, guideOf, meOf, nameOf, refsOfUnit, saveGuide, scopeOf, setScope, type State} from '../store';
 import type {Ref} from '../model';
+import {EditFrame} from './EditFrame';
 
 /**
  * 업무 안내 — 업무 전체에 관한 부서의 경험. 읽던 자리에서 그대로 고친다(따로 문서 창을 열지 않는다).
@@ -137,7 +138,7 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
     <div className="day gd">
       <div className="gd-h">
         <h3 className="dept">업무 안내</h3>
-        {!editing && g && <span className="gd-who">{md(g.at)} {nameOf(s, g.by)} 고침{mine && <button className="textbtn" onClick={start}>고치기</button>}</span>}
+        {!editing && g && mine && <button className="textbtn" onClick={start}>편집</button>}
       </div>
       <div className="gd-kind">
         <p className="kind">{deptName(s, meOf(s)?.deptId)} 운영 방식 · 업무 전체에 관한 것</p>
@@ -151,13 +152,13 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
         ) : <span className="scope-t">{scope === 'org' ? '조직 전체 공개' : '우리 부서만 공개'}</span>}
       </div>
       {editing ? (
-        <>
+        <EditFrame className="gd gd-edit" title="업무 안내" onCancel={() => finish(false)} onSave={() => finish(true)} foot={saved}>
           <div className="tools" role="toolbar" aria-label="서식">
             <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('h')}>제목</button>
             <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('b')}>굵게</button>
             <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('ul')}>목록</button>
             <button onMouseDown={e => e.preventDefault()} onClick={() => cmd('ol')}>번호 목록</button>
-            {refs.length > 0 && <button onMouseDown={e => { e.preventDefault(); keepSel(); }} onClick={() => setPick(p => !p)}>참고자료 연결</button>}
+            {refs.length > 0 && <button onMouseDown={e => { e.preventDefault(); keepSel(); }} onClick={() => setPick(p => !p)}>자료 넣기</button>}
           </div>
           {pick && (
             <div className="ref-pop" role="menu">
@@ -166,16 +167,13 @@ export function GuideBox({s, setS, toast, unitId}: {s: State; setS: (s: State) =
           )}
           <div ref={ed} className="gd-body ed" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="업무 안내"
             onInput={onInput} onPaste={onPaste} onKeyUp={keepSel} onMouseUp={keepSel} />
-          <div className="ed-foot">
-            <span>{saved}</span>
-            <span className="btns">
-              <button className="ghost" onClick={() => finish(false)}>취소</button>
-              <button className="primary" onClick={() => finish(true)}>저장</button>
-            </span>
-          </div>
-        </>
+        </EditFrame>
       ) : g ? (
-        <GuideBody html={g.html} refs={refs} />
+        <>
+          <GuideBody html={g.html} refs={refs} />
+          {/* 고친 날·사람은 본문과 떨어뜨려 맨 아래 한 줄(관리 정보) */}
+          <p className="gd-who">마지막 편집 {md(g.at)} · {nameOf(s, g.by)}</p>
+        </>
       ) : mine ? (
         <button className="gd-empty" onClick={start}>이 업무를 처음 맡는 사람이 알아야 할 것을 적어 두세요</button>
       ) : (

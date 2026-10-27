@@ -1,12 +1,12 @@
-import {addDays, cycleOf, monthDay, occurrences, ruleLabel, ymd} from '../schedule';
+import {addDays, cycleOf, monthDay, ruleLabel} from '../schedule';
 import {
-  canEditCommon, canEditWay, isOurHandover, deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf, waysOf,
+  isOurHandover, deptName, deptOf, deptPath, doneForMe, dutiesOfUnit, holdsOf, meOf, myDispatches, nameOf,
   addRef, linkRef, otherRefs, recordsOfUnit, refUse, refsOfUnit, sentDispatches, stepsOf, today, unlinkRef, type State,
 } from '../store';
 import {itemsInRange, type Row} from '../days';
 import type {Duty} from '../model';
 import {RowButton, type Ctx} from './common';
-import {StepsBlock} from './Steps';
+import {DutyAddForm, pendingDuties} from './Standard';
 import {placeColor} from './placeColor';
 import {useState, type CSSProperties} from 'react';
 
@@ -37,6 +37,77 @@ export function DutyRows({s, open, setOpen, unitId}: Pick<Ctx, 's' | 'open' | 's
       </div>
     ))}
   </>;
+}
+
+/** '매주 금요일' → '금요일'. 주기 칸에 이미 '매주'가 있으니 줄에는 나머지만(한 화면에 같은 정보는 한 번). */
+const ruleDetail = (rule: Duty['rule']) => {
+  const c = cycleOf(rule), t = ruleLabel(rule);
+  return t.startsWith(c) ? t.slice(c.length).trim() : t;
+};
+
+/**
+ * 업무지식 반복업무 목록(C안, 2026-10-26 사용자 판정) — 왼쪽 칸에 주기를 묶음 첫 줄에만, 줄은 이름(굵게) · 주기 상세(회색).
+ * 날짜·다음 일정은 두지 않는다(맡은 사람·안 맡은 사람 모두 같은 문서, 날짜는 오늘·달력·내 업무에서). 주기 묶음 순서는 고정.
+ * 승인을 기다리는 반복업무도 그 묶음에 '검토 중'으로. 줄을 누르면 그 반복업무 문서(처리방법의 원본)로 간다.
+ */
+export function DutyIndex({s, setS, toast, unitId, onPick}: Pick<Ctx, 's' | 'setS' | 'toast'> & {unitId: string; onPick: (dutyId: string) => void}) {
+  const duties = dutiesOfUnit(s, unitId);
+  const pend = pendingDuties(s, unitId);
+  const [adding, setAdding] = useState(false);
+  type Item = {key: string; title: string; rule: Duty['rule']; id?: string};
+  const items: Item[] = [...duties.map(d => ({key: d.id, title: d.title, rule: d.rule, id: d.id})), ...pend.map(d => ({key: d.key, title: d.title, rule: d.rule}))];
+  return (
+    <div className="day dix" data-spot="duties">
+      <div className="sec-h">
+        <h3 className="dept">반복업무 <span>{duties.length}</span></h3>
+        {!adding && <button className="textbtn" onClick={() => setAdding(true)}>+ 추가</button>}
+      </div>
+      {adding && <DutyAddForm s={s} setS={setS} toast={toast} unitId={unitId} onClose={() => setAdding(false)} />}
+      {items.length === 0 && !adding && <p className="none">반복업무가 없습니다</p>}
+      {CYCLES.map(c => {
+        const g = items.filter(x => cycleOf(x.rule) === c);
+        if (!g.length) return null;
+        return (
+          <div key={c} className="dix-g" role="group" aria-label={c}>
+            <span className="dix-c" aria-hidden="true">{c}</span>
+            <div className="dix-rows">
+              {g.map(x => x.id ? (
+                <button key={x.key} className="dix-r" onClick={() => onPick(x.id!)}>
+                  <span className="dix-n">{x.title}</span>
+                  {ruleDetail(x.rule) && <span className="dix-d">{ruleDetail(x.rule)}</span>}
+                </button>
+              ) : (
+                <div key={x.key} className="dix-r wait">
+                  <span className="dix-n">{x.title}</span>
+                  <span className="dix-d">{[ruleDetail(x.rule), '검토 중'].filter(Boolean).join(' · ')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 업무 문서(색인)의 반복업무 순서 — 주기 묶음 고정 순서. 반복업무 문서의 '이전 · 다음'도 이 순서를 따른다. */
+export const dutiesInIndexOrder = (s: State, unitId: string) =>
+  CYCLES.flatMap(c => dutiesOfUnit(s, unitId).filter(d => cycleOf(d.rule) === c));
+
+/** 내 업무에서 펼친 업무의 반복업무 머리 — 제목 옆 '+ 추가'와 검토 중인 것. 줄은 DutyRows(다음 날짜가 있는 실행 목록). */
+export function DutyHead({s, setS, toast, unitId}: Pick<Ctx, 's' | 'setS' | 'toast'> & {unitId: string}) {
+  const [adding, setAdding] = useState(false);
+  const pend = pendingDuties(s, unitId);
+  return (
+    <div className="day dhd">
+      <div className="sec-h">
+        <h3 className="dept">반복업무 <span>{dutiesOfUnit(s, unitId).length}</span></h3>
+        {!adding && <button className="textbtn" onClick={() => setAdding(true)}>+ 추가</button>}
+      </div>
+      {adding && <DutyAddForm s={s} setS={setS} toast={toast} unitId={unitId} onClose={() => setAdding(false)} />}
+      {pend.map(d => <p key={d.key} className="dix-wait"><b>{d.title}</b> {ruleLabel(d.rule)} · 검토 중</p>)}
+    </div>
+  );
 }
 
 /** 이 업무 담당이라 받은 요청. 없으면 칸을 두지 않는다. */
@@ -76,7 +147,7 @@ export function Records({s, unitId, limit = 8, head = true}: {s: State; unitId: 
 }
 
 /** 이 자리에 있었던 사람 — 같은 부서에서: 지금 맡은 사람(맡은 날부터) + 넘겨주고 떠난 사람(넘긴 날까지). */
-export function Tenure({s, unitId}: {s: State; unitId: string}) {
+export function Tenure({s, unitId, head = true}: {s: State; unitId: string; head?: boolean}) {
   const me = meOf(s)!;
   const now = s.people.filter(p => p.deptId === me.deptId && holdsOf(s, p.id).includes(unitId))
     .map(p => ({pid: p.id, until: '', text: s.since[`${p.id}:${unitId}`] ? `${s.since[`${p.id}:${unitId}`].slice(0, 7).replace('-', '.')}부터 지금` : '지금'}));
@@ -84,8 +155,8 @@ export function Tenure({s, unitId}: {s: State; unitId: string}) {
   const left = s.handovers.filter(h => h.state === 'accepted' && h.unitIds.includes(unitId) && isOurHandover(s, h))
     .map(h => ({pid: h.from, until: h.date, text: `${h.date.slice(0, 7).replace('-', '.')}까지`}));
   return (
-    <div className="day">
-      <h3 className="dept">이 자리에 있었던 사람</h3>
+    <div className={head ? 'day' : ''}>
+      {head && <h3 className="dept">이 자리에 있었던 사람</h3>}
       {now.length + left.length > 0 && (
         <div className="tenure" role="list">
           {[...left.slice().sort((a, b) => a.until.localeCompare(b.until)), ...now].map((x, i) => (
@@ -142,93 +213,88 @@ export function DeptPlace({s, open, setOpen, id, onBack}: Ctx & {id: string; onB
 }
 
 /**
- * 처리 순서 — 반복업무마다 공통 처리 순서와 그 아래 우리 부서 운영 방식(StepsBlock).
- * 고칠 수 있는 사람(맡은 사람·분류 관리자)에게는 순서가 비어 있는 반복업무도 보여 쓸 수 있게 하고, 나머지에게는 이름만 한 줄로 모은다.
- */
-export function HowTo({s, setS, toast, duties}: Pick<Ctx, 's' | 'setS' | 'toast'> & {duties: Duty[]}) {
-  const dep = meOf(s)?.deptId;
-  const [open, setOpen] = useState<string[]>([]);
-  const any = (d: Duty) => stepsOf(s, d).length > 0 || Object.keys(waysOf(s, dep, d.id)).length > 0;
-  const show = duties.filter(d => any(d) || open.includes(d.id)), none = duties.filter(d => !show.includes(d));
-  const may = (d: Duty) => canEditWay(s, d) || canEditCommon(s, d);
-  return (
-    <div className="day howto">
-      <h3 className="dept">처리 순서</h3>
-      <p className="kind">반복업무마다, 조직 공통(업무 표준)</p>
-      {show.length === 0 && none.every(d => !may(d)) && <p className="none">적힌 순서가 없습니다</p>}
-      {show.map(d => (
-        <div key={d.id} className="ht" data-spot={`how:${d.id}`}>
-          <h4>{d.title} <span>{ruleLabel(d.rule)}</span></h4>
-          <StepsBlock s={s} setS={setS} toast={toast} duty={d} spot />
-          {d.basis && <p className="basis">근거 · {d.basis}</p>}
-        </div>
-      ))}
-      {none.length > 0 && (show.length > 0 || none.some(may)) && (
-        <p className="ht-none"><b>순서 없음</b>
-          <span>{none.map((d, i) => <span key={d.id}>{i > 0 && ', '}{may(d)
-            ? <button className="textbtn inl" onClick={() => setOpen(o => [...o, d.id])}>{d.title}</button>
-            : d.title}</span>)}</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-/**
  * 참고자료 — 지침·서식·시스템 주소. 파일은 올리지 않고 어디 있는지(공유 폴더 경로·문서번호)만 적는다.
- * 맡은 사람만 더하고 뗀다. 우리 조직에 이미 등록된 자료는 골라서 붙인다(같은 자료를 여러 업무가 쓴다).
+ * 읽는 상태: 제목 옆 '+ 추가'와 '편집'(자료가 있을 때)만, 줄에는 단추 없음.
+ * '+ 추가': 그 자리 짧은 칸(폰에서도 전체 화면으로 바꾸지 않는다). 새로 적거나, 조직에 이미 등록된 자료를 고른다.
+ * '편집': 줄마다 '삭제'가 나오고 [취소] [저장]으로 끝낸다 — 삭제는 편집 상태 안에서만(2026-10-26 사용자 확정).
  */
-export function Refs({s, setS, toast, unitId, mine}: Pick<Ctx, 's' | 'setS' | 'toast'> & {unitId: string; mine: boolean}) {
+export function Refs({s, setS, toast, unitId, mine, note}: Pick<Ctx, 's' | 'setS' | 'toast'> & {unitId: string; mine: boolean; note?: string}) {
   const list = refsOfUnit(s, unitId), others = otherRefs(s, unitId);
-  const [mode, setMode] = useState<'' | 'new' | 'pick'>('');
+  const [mode, setMode] = useState<'' | 'add' | 'edit'>('');
+  const [src, setSrc] = useState<'new' | 'pick'>('new');
   const [kind, setKind] = useState<'link' | 'file'>('file');
   const [title, setTitle] = useState(''), [where, setWhere] = useState('');
-  const close = () => { setMode(''); setTitle(''); setWhere(''); };
-  const ok = title.trim() && where.trim();
+  const [picked, setPicked] = useState<string[]>([]);
+  const [gone, setGone] = useState<string[]>([]);
+  const close = () => { setMode(''); setSrc('new'); setTitle(''); setWhere(''); setPicked([]); setGone([]); };
+  const okNew = !!title.trim() && !!where.trim();
+  const ok = src === 'new' ? okNew : picked.length > 0;
+  const saveAdd = () => {
+    let n = s;
+    if (src === 'new') n = addRef(n, unitId, {kind, title: title.trim(), where: where.trim()});
+    else for (const id of picked) n = linkRef(n, unitId, id);
+    setS(n); toast('저장했습니다'); close();
+  };
+  const saveEdit = () => {
+    let n = s;
+    for (const id of gone) n = unlinkRef(n, unitId, id);
+    setS(n); toast(gone.length ? '저장했습니다. 이 업무에서만 빠졌습니다' : '저장했습니다', gone.length ? s : undefined); close();
+  };
   return (
     <div className="day refs">
       <div className="sec-h">
         <h3 className="dept">참고자료 <span>{list.length}</span></h3>
         {mine && !mode && (
           <span className="ref-acts">
-            {others.length > 0 && <button className="textbtn" onClick={() => setMode('pick')}>등록된 자료에서 고르기</button>}
-            <button className="textbtn" onClick={() => setMode('new')}>자료 더하기</button>
+            <button className="textbtn" onClick={() => setMode('add')}>+ 추가</button>
+            {list.length > 0 && <button className="textbtn" onClick={() => setMode('edit')}>편집</button>}
           </span>
         )}
       </div>
-      {list.length === 0 && !mode && <p className="none">붙은 자료가 없습니다</p>}
-      {list.map(r => (
+      {note && list.length > 0 && <p className="kind">{note}</p>}
+      {list.length === 0 && mode !== 'add' && <p className="none">붙은 자료가 없습니다</p>}
+      {list.filter(r => !gone.includes(r.id)).map(r => (
         <div key={r.id} className="ref">
           <span className="rk">{r.kind === 'link' ? '링크' : '파일'}</span>
           <span className="rb">
             {r.kind === 'link' ? <a href={r.where} target="_blank" rel="noreferrer">{r.title}</a> : <b>{r.title}</b>}
             <small><span>{r.where}</span>{refUse(s, r.id) > 1 && <span>업무 {refUse(s, r.id)}개에서 사용</span>}</small>
           </span>
-          {mine && <button className="textbtn" onClick={() => { setS(unlinkRef(s, unitId, r.id)); toast('이 업무에서 뗐습니다'); }}>떼기</button>}
+          {mode === 'edit' && <button className="textbtn" onClick={() => setGone(g => [...g, r.id])} aria-label={`${r.title} 삭제`}>삭제</button>}
         </div>
       ))}
-      {mode === 'pick' && (
-        <div className="editor">
-          {others.map(r => (
-            <button key={r.id} className="ref pick" onClick={() => { setS(linkRef(s, unitId, r.id)); toast('붙였습니다'); }}>
-              <span className="rk">{r.kind === 'link' ? '링크' : '파일'}</span>
-              <span className="rb"><b>{r.title}</b><small>{r.where}</small></span>
-            </button>
-          ))}
-          <div className="er-act"><button className="ghost" onClick={close}>닫기</button></div>
+      {mode === 'edit' && (
+        <div className="er-act">
+          {gone.length > 0 && <span className="er-foot">{gone.length}개 삭제 · 다른 업무에 붙은 자료는 그대로입니다</span>}
+          <button className="ghost" onClick={close}>취소</button>
+          <button className="primary sm" onClick={saveEdit}>저장</button>
         </div>
       )}
-      {mode === 'new' && (
+      {mode === 'add' && (
         <div className="editor">
-          <div className="seg2" role="radiogroup" aria-label="종류">
-            <button role="radio" aria-checked={kind === 'file'} className={kind === 'file' ? 'on' : ''} onClick={() => setKind('file')}>파일</button>
-            <button role="radio" aria-checked={kind === 'link'} className={kind === 'link' ? 'on' : ''} onClick={() => setKind('link')}>링크</button>
-          </div>
-          <label className="fld"><span>이름</span><input value={title} onChange={e => setTitle(e.target.value)} placeholder={kind === 'file' ? '예) 예산집행 지침' : '예) 회계 시스템'} /></label>
-          <label className="fld"><span>{kind === 'file' ? '있는 곳' : '주소'}</span><input value={where} onChange={e => setWhere(e.target.value)} placeholder={kind === 'file' ? '예) 공유폴더 > 경영지원 > 지침' : '예) https://…'} /></label>
+          {others.length > 0 && (
+            <div className="seg2" role="radiogroup" aria-label="자료">
+              <button role="radio" aria-checked={src === 'new'} className={src === 'new' ? 'on' : ''} onClick={() => setSrc('new')}>새로 적기</button>
+              <button role="radio" aria-checked={src === 'pick'} className={src === 'pick' ? 'on' : ''} onClick={() => setSrc('pick')}>등록된 자료 {others.length}</button>
+            </div>
+          )}
+          {src === 'pick' ? others.map(r => (
+            <label key={r.id} className="ref pick">
+              <input type="checkbox" checked={picked.includes(r.id)} onChange={() => setPicked(p => (p.includes(r.id) ? p.filter(x => x !== r.id) : [...p, r.id]))} />
+              <span className="rk">{r.kind === 'link' ? '링크' : '파일'}</span>
+              <span className="rb"><b>{r.title}</b><small>{r.where}</small></span>
+            </label>
+          )) : <>
+            <div className="seg2" role="radiogroup" aria-label="종류">
+              <button role="radio" aria-checked={kind === 'file'} className={kind === 'file' ? 'on' : ''} onClick={() => setKind('file')}>파일</button>
+              <button role="radio" aria-checked={kind === 'link'} className={kind === 'link' ? 'on' : ''} onClick={() => setKind('link')}>링크</button>
+            </div>
+            <label className="fld"><span>이름</span><input value={title} onChange={e => setTitle(e.target.value)} placeholder={kind === 'file' ? '예) 예산집행 지침' : '예) 회계 시스템'} /></label>
+            <label className="fld"><span>{kind === 'file' ? '있는 곳' : '주소'}</span><input value={where} onChange={e => setWhere(e.target.value)} placeholder={kind === 'file' ? '예) 공유폴더 > 경영지원 > 지침' : '예) https://…'} /></label>
+          </>}
           <div className="er-act">
             <button className="ghost" onClick={close}>취소</button>
-            <button className="primary" disabled={!ok} onClick={() => { setS(addRef(s, unitId, {kind, title: title.trim(), where: where.trim()})); toast('붙였습니다'); close(); }}>붙이기</button>
+            <button className="primary sm" disabled={!ok} onClick={saveAdd}>저장</button>
           </div>
         </div>
       )}
@@ -239,33 +305,4 @@ export function Refs({s, setS, toast, unitId, mine}: Pick<Ctx, 's' | 'setS' | 't
 /** 이 반복업무가 내게 다음에 오는 날(오늘부터 넉 달 안, 아직 안 한 회차). */
 function nextOf(m: Map<string, Row[]>, dutyId: string) {
   return [...m.keys()].sort().find(date => m.get(date)!.some(r => r.kind === 'duty' && r.id === dutyId && !r.done));
-}
-
-/**
- * 달마다 몰리는 때 — 1~12월 칸, 반복업무가 몰리는 달일수록 진하게(매일·매주는 모든 달 비슷해 뺀다).
- * 글자로 '매월 15일, 분기 시작월 말일…'을 읽지 않아도 바쁜 달이 보인다.
- */
-export function YearBeat({duties}: {duties: Duty[]}) {
-  const y = new Date().getFullYear(), cur = new Date().getMonth();
-  const counts = Array.from({length: 12}, (_, m) => {
-    const from = ymd(new Date(y, m, 1)), to = ymd(new Date(y, m + 1, 0));
-    // 매일·매주는 어느 달이나 비슷해 박자를 흐리므로 뺀다(매월·분기·매년만)
-    return duties.filter(d => d.rule.kind !== 'daily' && d.rule.kind !== 'weekly').reduce((n, d) => n + occurrences(d.rule, from, to).length, 0);
-  });
-  const max = Math.max(...counts);
-  if (!max) return null;
-  const busy = counts.map((n, m) => (n === max ? m + 1 : 0)).filter(Boolean);
-  return (
-    <div className="beat">
-      <div className="beat-h"><h3 className="dept">달마다 몰리는 때</h3><span>{busy.length === 12 ? '달마다 고름' : `${busy.join('·')}월에 몰림`}</span></div>
-      <div className="beat-row" role="img" aria-label={counts.map((n, m) => `${m + 1}월 ${n}건`).join(', ')}>
-        {counts.map((n, m) => (
-          <div key={m} className={`bm${m === cur ? ' cur' : ''}`}>
-            <i style={{opacity: n ? .18 + .82 * (n / max) : 1}} className={n ? '' : 'zero'} />
-            <small>{m + 1}</small>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }

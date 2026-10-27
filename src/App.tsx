@@ -1,6 +1,7 @@
 import {flushSync} from 'react-dom';
 import {useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
-import {addNotice, deptName, dutyById, hasNotice, loadState, meOf, myDuties, occKey, orgName, saveState, today, unitById, unreadCount, type State, roleOf
+import {addNotice, deptName, dutyById, hasNotice, loadState, meOf, myDuties, occKey, orgName, saveState, today, unitById, unreadCount, type State, roleOf,
+  removeTask,
 } from './store';
 import {DailyCard, DutyCard, RecsCard, TaskCard, UnitPanel} from './Cards';
 import {Login} from './Entry';
@@ -254,13 +255,18 @@ export default function App() {
             {!place && view === 'home' && <Home onSettle={() => go('work', () => setWorkSub({kind: 'settle', mode: 'empty'}))} {...ctx} sel={sel} setSel={setSel} onCompose={p => setCompose({...p, target: 'me'})} />}
             {!place && view === 'search' && <SearchResults s={s} q={q} />}
             {!place && view === 'calendar' && <Calendar {...ctx} sel={sel} setSel={setSel} />}
-            {!place && view === 'me' && <Me onSwitch={n => { setS(n); setViewing(true); go('home'); setSel(today()); }} s={s} setS={setS} perm={perm} setPerm={setPerm} />}
+            {!place && view === 'me' && <Me onMove={() => go('work', () => setWorkSub({kind: 'settle', mode: 'move'}))} onSwitch={n => { setS(n); setViewing(true); go('home'); setSel(today()); }} s={s} setS={setS} toast={setToast} perm={perm} setPerm={setPerm} />}
             {panel && <div className={`pw${leaving ? ' out' : ''}`}>{panel}</div>}
           </div>
         </main>
       </div>
       {compose && (
         <Compose s={s} setS={setS} preset={compose} onClose={() => setCompose(null)}
+          onDelete={() => {
+            const t = s.tasks.find(x => x.id === compose.editId);
+            if (!t || !confirm(t.rule ? '반복 할 일을 모두 삭제할까요?' : '이 할 일을 삭제할까요?')) return;
+            setS(removeTask(s, t.id)); setCompose(null); setOpen(null); setToast(t.rule ? '반복 할 일을 모두 삭제했습니다' : '삭제했습니다', s);
+          }}
           onDone={(msg, date, to) => {
             setCompose(null); setToast(msg);
             if (to?.sent) { setView('work'); setPlace(null); setWorkSub({kind: 'main'}); setOpen(null); }

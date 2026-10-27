@@ -124,7 +124,7 @@ export function QuickInput({base, onAdd, onDetail}: {base: string; onAdd: (p: Pa
       <div className="qi">
         <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit(); }}
           placeholder="예) 18일까지 자료 제출" aria-label="할 일 입력" />
-        <button className="ghost strong" disabled={!p?.title} onClick={submit}>추가</button>
+        <button className="ghost" disabled={!p?.title} onClick={submit}>추가</button>
       </div>
       {onDetail && (
         <button className="textbtn detailbtn" onClick={() => { onDetail(p ? {title: p.title, date: p.date ?? base, time: p.time, rule: p.rule} : {date: base}); setText(''); }}>
@@ -152,7 +152,7 @@ export function InboxCards({s, setS, toast}: {s: State; setS: (s: State) => void
             <Upcoming s={s} unitIds={h.unitIds} taskIds={h.taskIds} heading="받으면 할 일에 이렇게 들어옵니다" />
             <div className="ib-act">
               <button className="ghost" onClick={() => { setS(declineHandover(s, h.id)); toast('거절했습니다'); }}>거절</button>
-              <button className="ghost strong" onClick={() => { setS(acceptHandover(s, h.id)); toast('받았습니다. 할 일에 들어갔습니다'); }}>받기</button>
+              <button className="primary sm" onClick={() => { setS(acceptHandover(s, h.id)); toast('받았습니다. 할 일에 들어갔습니다'); }}>받기</button>
             </div>
           </div>
         );
@@ -218,7 +218,7 @@ export function ReceivedCards({s, setS}: {s: State; setS: (s: State) => void}) {
             {extra > 0 && <p className="what">함께 받은 할 일 {extra}개</p>}
             {h.note && <p className="q">{nameOf(s, h.from)} 님이 남긴 말 · {h.note}</p>}
             <div className="ib-act">
-              <button className="ghost" onClick={() => setS(seeHandover(s, h.id))}>확인</button>
+              <button className="primary sm" onClick={() => setS(seeHandover(s, h.id))}>확인</button>
             </div>
           </div>
         );

@@ -104,8 +104,8 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
         </table>
         <p className="hint">주기는 매일 · 매주 월요일 · 매월 15일 · 매월 말일 · 매월 넷째 주 월요일 · 분기 시작월 말일 처럼 씁니다</p>
         <div className="links">
-          <button className="textbtn" onClick={() => download('업무기준표_양식.csv', toCsv([], []))}>빈 양식 받기</button>
-          {sample && <button className="textbtn" onClick={() => download(`${sample.name}_업무기준표.csv`, toCsv(unitsOfOrg(s, sample.id), s.duties))}>{sample.name} 기준표 예시 받기</button>}
+          <button className="textbtn" onClick={() => download('업무기준표_양식.csv', toCsv([], []))}>양식 내려받기</button>
+          {sample && <button className="textbtn" onClick={() => download(`${sample.name}_업무기준표.csv`, toCsv(unitsOfOrg(s, sample.id), s.duties))}>{sample.name} 예시 내려받기</button>}
         </div>
         <div className="flow-foot">
           <label className="primary wide filebtn">
@@ -121,7 +121,7 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
   const ok = b.units.length > 0;
   return (
     <div className="flow" key={step}>
-      <button className="textbtn close" onClick={() => setStep('file')}>다른 파일 올리기</button>
+      <button className="textbtn close" onClick={() => setStep('file')}>파일 다시 올리기</button>
       <h1>{name.trim()}</h1>
       <p className="lead">{fileName}</p>
       {ok ? (
@@ -140,9 +140,8 @@ function RegisterOrg({s, onCancel, onDone}: {s: State; onCancel: () => void; onD
         </div>
       )}
       <div className="flow-foot">
-        <button className="primary wide" disabled={!ok} onClick={() => onDone(registerOrg(s, orgId, name.trim(), b.units, b.duties))}>
-          {ok ? `등록하기 · 단위업무 ${b.units.length}개 · 반복업무 ${b.duties.length}개` : '등록할 수 없습니다'}
-        </button>
+        <p className="foot-sum">{ok ? `단위업무 ${b.units.length}개 · 반복업무 ${b.duties.length}개` : '등록할 수 없습니다'}</p>
+        <button className="primary wide" disabled={!ok} onClick={() => onDone(registerOrg(s, orgId, name.trim(), b.units, b.duties))}>등록</button>
       </div>
     </div>
   );
@@ -208,7 +207,7 @@ function Signup({s, setS, onCancel}: {s: State; setS: (s: State) => void; onCanc
   if (step === 'units') {
     return (
       <UnitPicker s={s} org={org!} title="맡은 업무를 모두 고르세요" lead={`회원가입 3/3 · ${deptPath(s, deptId)} · 여러 개 고를 수 있습니다`}
-        doneLabel="고르기" back={{label: '이전', onClick: () => setStep('dept')}}
+        doneLabel="다음" back={{label: '이전', onClick: () => setStep('dept')}}
         onDone={ids => { setPicked(ids); setStep('done'); }} />
     );
   }

@@ -27,8 +27,8 @@ export type Step = {id?: string; text: string; form?: string; warn?: boolean}; /
  * base: 쓸 때의 공통 단계 글. 공통이 바뀌면 지우지 않고 '확인 필요'로만 보인다. 공통과 부서 중 무엇을 따를지는 시스템이 정하지 않는다.
  */
 export type DeptWay = {text: string; base: string; by: string; at: string};
-/** 공통 처리 순서가 바뀐 기록(관리자만 고친다). 기록이 없으면 '기존 등록 자료'. */
-export type StepChange = {by: string; at: string; before: Step[]; after: Step[]};
+/** 처리방법 편집 한 번(누구나, 2026-10-26). 전·후 전체가 남아 판이 되고, 복원도 이 기록 하나로 남는다. 기록이 없으면 '처음 등록 자료'. */
+export type StepChange = {by: string; at: string; before: Step[]; after: Step[]; restored?: string}; // restored: 이전 판으로 되돌린 편집이면 그 판의 시각('first' = 처음 등록 자료)
 
 /** 단위업무 — 사람이 맡고 넘기는 단위. 업무분장표의 한 줄. series 는 직렬(대분류). */
 export type Unit = {id: string; org: OrgId; series: string; name: string};

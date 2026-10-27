@@ -32,8 +32,8 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
   const no = stepsAll.indexOf(step) + 1;
   const head = (title: string, lead: string) => (
     <>
-      <button className="textbtn close" onClick={onCancel}>그만두기</button>
-      <p className="settle-step">{mode === 'move' ? '부서 옮기기' : '자리 잡기'} · {no}/{stepsAll.length}</p>
+      <button className="textbtn close" onClick={onCancel}>취소</button>
+      <p className="settle-step">{mode === 'move' ? '부서 이동' : '자리 잡기'} · {no}/{stepsAll.length}</p>
       <h1>{title}</h1>
       <p className="lead">{lead}</p>
     </>
@@ -60,6 +60,7 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
           <textarea className="note" rows={3} placeholder="다음 담당자가 알아야 할 것 (적지 않아도 됨)" value={note} onChange={e => setNote(e.target.value)} />
         )}
         <div className="flow-foot">
+          {!ok && <p className="foot-sum">업무마다 골라 주세요</p>}
           <button className="primary wide" disabled={!ok} onClick={() => {
             let n = s;
             const byTo: Record<string, string[]> = {};
@@ -69,7 +70,7 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
             setS(n); setStep('dept');
             const sent = Object.keys(byTo).length;
             if (sent) toast(`${Object.keys(byTo).map(id => nameOf(s, id)).join(', ')} 님에게 인수인계를 보냈습니다. 받으면 옮겨 갑니다`);
-          }}>{ok ? '정리하고 다음' : '업무마다 골라 주세요'}</button>
+          }}>다음</button>
         </div>
       </div>
     );
@@ -95,7 +96,8 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
         <InboxCards s={s} setS={setS} toast={toast} />
         {received.length > 0 && <p className="what settle-got">받은 업무 · {s.units.filter(u => received.includes(u.id)).map(u => u.name).join(', ')}</p>}
         <div className="flow-foot">
-          <button className="primary wide" onClick={() => setStep('units')}>{inbox.length ? '나머지는 나중에 · 다음' : '다음'}</button>
+          {inbox.length > 0 && <p className="foot-sum">받지 않은 인수인계는 나중에 받을 수 있습니다</p>}
+          <button className="primary wide" onClick={() => setStep('units')}>다음</button>
         </div>
       </div>
     );
@@ -110,7 +112,7 @@ export function SettleFlow({s, setS, toast, mode, onDone, onCancel}: {
         )}
         <UnitPicker s={s} org={me.org} title="새 자리에서 맡을 업무를 고르세요"
           lead={`${deptPath(s, me.deptId)} · 여러 개 고를 수 있습니다${received.length ? ' · 받은 업무는 이미 들어 있습니다' : ''}`}
-          doneLabel="고르기" back={{label: '그만두기', onClick: onCancel}}
+          doneLabel="다음" back={{label: '취소', onClick: onCancel}}
           onDone={ids => { setPicked(ids); setStep('fill'); }} />
       </div>
     );

@@ -1,6 +1,6 @@
 import {useEffect, useState, type CSSProperties} from 'react';
 import {usePlaceNav} from './placeNav';
-import {NewUnitModal, UnitStandard} from './Standard';
+import {NewUnitModal} from './Standard';
 import {RepeatList} from './RepeatList';
 import {SettleFlow} from '../Settle';
 import {dateLabel, monthDay, occurrences, ruleLabel} from '../schedule';
@@ -12,7 +12,7 @@ import type {Handover} from '../model';
 import {HandoverFlow} from '../Handover';
 import {UnitPicker} from '../ui';
 import type {Ctx} from './common';
-import {Asks, DutyRows, Records, YearBeat} from './Place';
+import {Asks, DutyHead, DutyRows, notedOf} from './Place';
 import {placeColor} from './placeColor';
 
 export type WorkSub = {kind: 'main'} | {kind: 'pick'} | {kind: 'send'; preselect?: string} | {kind: 'settle'; mode: 'move' | 'empty'};
@@ -47,9 +47,9 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome, focus}
     return (
       <section className="list">
         {making && <NewUnitModal s={s} setS={setS} toast={toast} onClose={() => setMaking(false)} />}
-        <UnitPicker manage onCreate={() => setMaking(true)} s={s} org={orgOf(s)} title="업무 바꾸기" doneLabel="적용"
+        <UnitPicker manage onCreate={() => setMaking(true)} s={s} org={orgOf(s)} title="업무 변경" doneLabel="저장"
           lead="체크한 업무가 내 업무입니다. 맡으면 반복업무가 오늘과 달력에 들어오고, 빼면 오늘부터 안 들어옵니다"
-          back={{label: '닫기', onClick: () => setSub({kind: 'main'})}}
+          back={{label: '취소', onClick: () => setSub({kind: 'main'})}}
           onDone={ids => {
             const held = myUnits(s).map(u => u.id);
             const add = ids.filter(x => !held.includes(x)), drop = held.filter(x => !ids.includes(x));
@@ -86,10 +86,6 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome, focus}
           <h2>내 업무</h2>
           <p>{deptName(s, meOf(s)!.deptId)} · 맡은 업무 {units.length}개</p>
         </div>
-        <span className="sec-acts">
-          <button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'pick'}); }}>업무 바꾸기</button>
-          <button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'settle', mode: 'move'}); }}>부서 옮기기(발령)</button>
-        </span>
       </div>
 
       {units.length === 0 && (
@@ -103,19 +99,22 @@ export function Work({s, setS, open, setOpen, toast, sub, setSub, onHome, focus}
           expanded={wide.includes(u.id)} onToggle={() => setWide(w => (w.includes(u.id) ? w.filter(x => x !== u.id) : [...w, u.id]))}
           onGive={() => { setOpen(null); setSub({kind: 'send', preselect: u.id}); }} />
       ))}
+      {units.length > 0 && (
+        <div className="list-end"><button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'pick'}); }}>업무 변경</button></div>
+      )}
 
       <RepeatList mineOnly s={s} open={open} setOpen={setOpen} />
 
       <div className="card">
         <div className="sec-h">
           <h3 className="dept">인수인계</h3>
-          {canGive && <button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'send'}); }}>인수인계 하기</button>}
+          {canGive && <button className="textbtn" onClick={() => { setOpen(null); setSub({kind: 'send'}); }}>인수인계</button>}
         </div>
         {sent.length === 0 && past.length === 0 && <p className="none">주고받은 인수인계가 없습니다</p>}
         {sent.map(h => (
           <div key={h.id} className="row static">
             <span className="t">{unitNames(h)}<small>{nameOf(s, h.to)} 님이 받기를 기다리는 중</small></span>
-            <button className="ghost" onClick={() => { setS(cancelHandover(s, h.id)); toast('인수인계를 취소했습니다'); }}>취소</button>
+            <button className="ghost" onClick={() => { setS(cancelHandover(s, h.id)); toast('인수인계를 취소했습니다'); }}>인수인계 취소</button>
           </div>
         ))}
         {past.map(h => (
@@ -155,21 +154,21 @@ function UnitBlock({s, setS, open, setOpen, toast, unitId, expanded, onToggle, o
           {asks > 0 && <span className="pr"><span className="ask">처리할 받은 요청 {asks}</span></span>}
         </button>
         <span className="wu-acts">
-          <button className="textbtn" onClick={() => goPlace({kind: 'unit', id: unitId})}>업무지식</button>
+          <button className="textbtn" onClick={() => goPlace({kind: 'unit', id: unitId})}>업무지식에서 보기</button>
           <button className="textbtn" onClick={onToggle}>{expanded ? '접기' : '펼치기'}</button>
         </span>
       </div>
       {expanded && (
         <div className="wu-b">
+          <DutyHead s={s} setS={setS} toast={toast} unitId={unitId} />
           <DutyRows s={s} open={open} setOpen={setOpen} unitId={unitId} />
-          <YearBeat duties={duties} />
           <Asks s={s} open={open} setOpen={setOpen} unitId={unitId} />
-          <Records s={s} unitId={unitId} limit={5} />
-          <UnitStandard s={s} setS={setS} toast={toast} unitId={unitId} />
+          {/* 펼치면 다음 할 일과 받은 요청이 중심(2026-10-26 사용자 판정). 지난 기록은 없애지 않고 오른쪽 판으로, 인수인계는 이 업무 맥락에 그대로 */}
           <div className="wu-give">
+            {notedOf(s, unitId).length > 0 && <button className="textbtn wu-recs" aria-pressed={open?.kind === 'recs' && open.id === unitId} onClick={() => setOpen({kind: 'recs', id: unitId})}>지난 기록 {notedOf(s, unitId).length}</button>}
             {p
-              ? <button className="ghost" onClick={() => { setS(cancelHandover(s, p.id)); toast('인수인계를 취소했습니다'); }}>{nameOf(s, p.to)} 님에게 인수인계 중 · 취소</button>
-              : <button className="ghost" onClick={onGive}>이 업무 인수인계 하기</button>}
+              ? <><span className="wait">{nameOf(s, p.to)} 님에게 인수인계 중</span><button className="ghost" onClick={() => { setS(cancelHandover(s, p.id)); toast('인수인계를 취소했습니다'); }}>인수인계 취소</button></>
+              : <button className="ghost" onClick={onGive}>인수인계</button>}
           </div>
         </div>
       )}

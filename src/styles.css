@@ -1266,3 +1266,121 @@ body:has(.scrim) .toast { bottom: auto; top: 24px; }
 .sp-tag > span + span { color: var(--ink); font-weight: 700; animation-delay: 1.38s; }
 @keyframes sp-tag { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .sp-mask > span, .sp-tag > span { animation: none; } .sp-line { display: none; } }
+
+/* ===== 조작 체계(2026-10-26 사용자 확정): ✕ 닫기 · 단추 밖 요약 줄 · 반복업무 목록 C안 · 편집 상태 ===== */
+.xbtn { width: 44px; height: 44px; margin: -10px -10px 0 0; display: grid; place-items: center; border-radius: 12px; color: var(--sub); flex: none; }
+.xbtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.xbtn:hover { background: var(--chip); color: var(--ink); }
+.xbtn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.foot-sum { margin: 0 0 8px; font-size: 15px; font-weight: 600; color: var(--sub); text-align: center; }
+.more-line { margin: 14px 0 0; font-size: 15px; color: var(--sub); }
+.more-line .more-link { margin: 0; text-decoration: underline; color: var(--ink); }
+.list-end { display: flex; justify-content: flex-end; margin: 4px 0 12px; }
+.list-end .textbtn { text-decoration: underline; }
+.lockline .link { min-height: 36px; text-decoration: underline; color: var(--ink); font-size: 14px; }
+.mb .mb-del { margin-right: auto; text-decoration: underline; }
+.wu-give { display: flex; align-items: center; gap: 12px; }
+.wu-give .wait { flex: 1; font-size: 15px; color: var(--sub); font-weight: 600; }
+
+/* 반복업무 목록 C안 — 왼쪽 칸에 주기(묶음 첫 줄에만), 줄은 이름 굵게 · 주기 상세 회색, 묶음 사이 가는 선. 날짜 칸 없음 */
+.dix .sec-h { margin-bottom: 6px; }
+.dix-g { display: grid; grid-template-columns: 64px 1fr; border-top: 1px solid var(--line); }
+.dix-g:last-child { border-bottom: 1px solid var(--line); }
+.dix-c { padding: 12px 0 0 2px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.dix-rows { display: flex; flex-direction: column; min-width: 0; }
+.dix-r { display: flex; align-items: baseline; gap: 16px; min-height: 44px; padding: 10px 10px; text-align: left; border-radius: 8px; }
+button.dix-r:hover { background: var(--chip); }
+button.dix-r:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.dix-n { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; color: var(--ink); word-break: keep-all; }
+.dix-d { flex: none; font-size: 15px; color: var(--sub); white-space: nowrap; }
+.dix-r.wait .dix-n { font-weight: 600; color: var(--sub); }
+.dix-wait { margin: 2px 0; font-size: 15px; color: var(--sub); }
+.dix-wait b { color: var(--ink); }
+.dix .std-form, .dhd .std-form { margin: 4px 0 12px; }
+@media (max-width: 900px) {
+  .dix-g { grid-template-columns: 52px 1fr; }
+  .dix-r { flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 6px; }
+  .dix-d { white-space: normal; }
+}
+.lockline { background: none; padding: 0; margin: 6px 0 0; }
+
+/* 편집 상태 — 읽는 상태에는 묶음 제목 옆 조용한 단추만, 세부 조작(삭제·단계 추가·주의 추가)은 여기에서만 */
+.gd .gd-h > .textbtn, .sb-acts .textbtn { font-size: 14px; color: var(--ink); text-decoration: underline; }
+.gd > .gd-who { margin: 12px 0 0; font-size: 13px; color: var(--sub); }
+.er-act { align-items: center; }
+.er-foot { margin-right: auto; font-size: 13px; color: var(--sub); }
+.editor .er .textbtn { font-size: 14px; }
+.editor .er.cur input { border-color: var(--ink); }
+.ed-top { display: none; }
+.editor.big { margin-top: 10px; }
+.gd-edit .gd-body.ed { margin-top: 0; }
+.ref.pick input { width: 20px; height: 20px; margin: 2px 4px 0 0; flex: none; accent-color: var(--ink); }
+/* 폰: 긴 편집은 그 묶음만 전체 화면(위 왼쪽 취소 · 위 오른쪽 저장), 아래 단추 줄은 감춘다. 짧은 편집(참고자료 등)은 그 자리 그대로 */
+@media (max-width: 900px) {
+  .editor.big { position: fixed; inset: 0; z-index: 60; margin: 0; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); overflow: auto; background: var(--bg); border-radius: 0; animation: fade-in 160ms ease-out; }
+  .editor.big > .ed-top { display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 1; margin: 0 -16px 12px; padding: 6px 12px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .ed-top b { flex: 1; min-width: 0; text-align: center; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-top .textbtn { color: var(--ink); padding: 0 8px; }
+  .editor.big > .er-act { display: none; }
+  .editor.big .eh { margin-left: 0; }
+}
+.refs .editor .fld input { flex: none; height: 44px; }
+
+/* 반복업무 문서 — 업무 문서(색인)에서 줄을 누르면 열리는 원본 문서 */
+.doc-wrap { min-width: 0; }
+.duty-doc .over .crumb { min-height: 32px; padding: 0; font-size: inherit; color: var(--ink); text-decoration: underline; }
+.duty-doc .place-h h2 { font-size: 28px; }
+.duty-doc .stepsb .sec-h { margin: 0 0 6px; }
+.duty-doc .stepsb .sec-h .dept { margin: 0; }
+.dset-row { display: flex; gap: 16px; margin: 8px 0 0; font-size: 15px; }
+.dset-row span { width: 88px; flex: none; color: var(--sub); }
+.detail .ref-line { display: flex; flex-direction: column; margin: 0 0 8px; font-size: 15px; }
+.detail .ref-line a, .detail .ref-line b { color: var(--ink); font-weight: 700; }
+.detail .ref-line small { font-size: 13px; color: var(--sub); word-break: break-all; }
+.duty-doc .over .crumb { display: inline; min-height: 0; vertical-align: baseline; }
+
+/* 공동 편집 — 직원이 쓴 처리방법과 공식 근거를 모양으로도 나눈다(색만으로 나누지 않고 글자로 이름을 붙인다) */
+.sb-kind { margin: -2px 0 8px; }
+.basis { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--ink); border-radius: 10px; font-size: 15px; color: var(--ink); }
+.basis b { font-size: 14px; }
+.basis small { margin-left: 8px; font-size: 13px; color: var(--sub); }
+.basis p { margin: 4px 0 0; }
+.way.old { color: var(--sub); }
+.way.old .wk { font-weight: 700; }
+.sb-hist { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.sb-hist li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.sb-hist .hv { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 15px; }
+.sb-hist .hv small { flex-basis: 100%; font-size: 14px; color: var(--sub); }
+.sb-hist .textbtn { text-decoration: underline; color: var(--ink); }
+.dtag { display: inline-block; margin-left: 8px; padding: 0 6px; border: 1px solid var(--sub); border-radius: 6px; font-size: 12px; font-weight: 700; color: var(--sub); line-height: 1.6; vertical-align: 1px; }
+.sb-ver { margin-top: 10px; padding: 14px 16px; border-radius: 12px; background: var(--chip); }
+.sb-ver-h { margin: 0 0 6px; font-size: 15px; }
+.sb-later { margin-top: 10px; font-size: 14px; }
+.sb-later p { margin: 0; font-weight: 700; color: var(--sub); }
+.sb-later ul { margin: 4px 0 0; padding-left: 18px; }
+.sb-ver .er-act { margin-top: 10px; justify-content: space-between; }
+.sb-ver .er-act .textbtn { text-decoration: underline; }
+.sb-hist { display: block; background: none; border-radius: 0; padding: 0; font-size: 15px; } .sb-hist li { flex-direction: row; }
+
+/* 접는 칸(Fold) — 짧은 부가 정보만. 제목 줄 전체가 단추, 앞에 ▸/▾ */
+.fold { border-top: 1px solid var(--line); }
+.fold-h { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; text-align: left; }
+.fold-h .dept { margin: 0; }
+.fold-mk { width: 14px; flex: none; font-size: 12px; color: var(--sub); }
+.fold-h:hover .dept, .fold-h:hover .fold-mk { color: var(--ink); }
+.fold-h:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+.fold-b { padding: 0 0 14px 22px; }
+.fold-b .sec-h { margin-top: 0; align-items: center; }
+.fold-b .rec-last { margin: 0; }
+/* 반복업무 문서 이전 · 다음 — 색인 순서, 몇 번째인지 */
+.dd-nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.dd-nav .textbtn { display: flex; flex-direction: column; align-items: flex-start; min-height: 44px; padding: 4px 0; color: var(--ink); text-align: left; font-size: 15px; }
+.dd-nav .textbtn.nx { align-items: flex-end; text-align: right; justify-self: end; }
+.dd-nav small { font-size: 13px; font-weight: 600; color: var(--sub); }
+.dd-at { font-size: 14px; color: var(--sub); font-weight: 600; }
+/* 할 일 상세의 지난 처리 메모 — 접지 않고 하나만 */
+.detail .memo-last .hd { margin: 0; font-size: 13px; color: var(--sub); }
+.detail .memo-last .mq { margin: 4px 0 0; padding-left: 10px; border-left: 2px solid var(--line); font-size: 15px; color: var(--ink); }
+.wu-recs { text-decoration: underline; color: var(--ink); margin-right: auto; }
+.stepsb.sb-empty.headed { display: block; } .stepsb.sb-empty.headed .sec-h { justify-content: space-between; } .stepsb.sb-empty.headed .plain { margin: 4px 0 0; }
+.fold-mk { font-size: 14px; color: var(--ink); }

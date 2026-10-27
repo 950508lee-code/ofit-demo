@@ -33,55 +33,58 @@ function DutyLines({lines, setLines}: {lines: string[]; setLines: (l: string[]) 
           </div>
         );
       })}
-      <button className="textbtn add" onClick={() => setLines([...lines, ''])}>한 줄 더</button>
+      <button className="textbtn add" onClick={() => setLines([...lines, ''])}>+ 줄 추가</button>
     </div>
   );
 }
 const ready = (ls: Line[]) => ls.length > 0 && ls.every(l => l.rule && l.title);
 
-/** 자리 화면: 이 업무에 반복업무 더하기 + 검토 중·기록. */
-export function UnitStandard({s, setS, toast, unitId}: {s: State; setS: (s: State) => void; toast: (m: string) => void; unitId: string}) {
-  const [open, setOpen] = useState(false);
+/**
+ * 반복업무 추가 — 목록 제목 옆 '+ 추가'로 여는 창(2026-10-26 사용자 판정: 추가는 그 목록에서, 단추에는 행동만).
+ * 관리자 확인이 필요하면 단추는 '보내기', 절차는 칸 안 한 줄로 말한다. 관리자 본인이면 '저장'으로 바로 들어간다.
+ */
+export function DutyAddForm({s, setS, toast, unitId, onClose}: {s: State; setS: (s: State) => void; toast: (m: string) => void; unitId: string; onClose: () => void}) {
   const [lines, setLines] = useState<string[]>(['']);
   const series = unitById(s, unitId)?.series ?? '';
   const admin = canApprove(s, series);
   const parsed = parseLines(lines);
-  const props = proposalsOfUnit(s, unitId).slice().reverse();
-  const pending = props.filter(p => p.state === 'pending');
-  const done = props.filter(p => p.state !== 'pending');
   const submit = () => {
     setS(propose(s, {unitId, duties: parsed.map(l => ({title: l.title, rule: l.rule!}))}));
-    setOpen(false); setLines(['']);
-    toast(admin ? `반복업무 ${parsed.length}개를 더했습니다. 맡은 사람 모두에게 들어갑니다` : `${who(s, series)} 님에게 올렸습니다. 승인되면 맡은 사람 모두에게 들어갑니다`);
+    onClose();
+    toast(admin ? `반복업무 ${parsed.length}개를 추가했습니다. 맡은 사람 모두에게 들어갑니다` : `${who(s, series)} 님에게 보냈습니다. 승인되면 맡은 사람 모두에게 들어갑니다`);
   };
+  // 모달(2026-10-26 사용자 판정: 반복업무 추가는 문서를 읽는 일이 아니라 변경 요청 — 짧은 입력은 창에서). 관리자 확인 절차는 보내기 바로 위 한 줄
   return (
-    <div className="day std">
-      <div className="sec-h">
-        <h3 className="dept">업무 표준</h3>
-        {!open && <button className="textbtn" onClick={() => setOpen(true)}>반복업무 더하기</button>}
+    <Modal title={`${unitById(s, unitId)?.name ?? ''} · 반복업무 추가`} onCancel={onClose}>
+      <div className="compose std-form">
+        <DutyLines lines={lines} setLines={setLines} />
+        <p className="hint">{admin ? '저장하면 이 업무를 맡은 모든 담당자의 할 일에 바로 들어갑니다' : `보내면 ${series} 분류 관리자(${who(s, series)})가 확인합니다. 승인 전까지 일정은 그대로이고, 승인되면 이 업무를 맡은 모든 담당자에게 들어갑니다`}</p>
       </div>
-      {open && (
-        <div className="std-form">
-          <p className="hint">{admin ? '더하면 이 업무를 맡은 모두의 할 일에 바로 들어갑니다' : `올리면 ${series} 분류 관리자(${who(s, series)})가 확인한 뒤 맡은 모두에게 들어갑니다`}</p>
-          <DutyLines lines={lines} setLines={setLines} />
-          <div className="mb">
-            <button className="ghost" onClick={() => { setOpen(false); setLines(['']); }}>취소</button>
-            <button className="primary sm" disabled={!ready(parsed)} onClick={submit}>{admin ? '더하기' : '관리자에게 올리기'}</button>
-          </div>
-        </div>
-      )}
-      {pending.map(p => <PropRow key={p.id} s={s} p={p} />)}
-      {done.slice(0, 5).map(p => <PropRow key={p.id} s={s} p={p} />)}
-      {!open && props.length === 0 && <p className="none">바꾼 기록이 없습니다</p>}
-    </div>
+      <div className="mb">
+        <button className="ghost" onClick={onClose}>취소</button>
+        <button className="primary" disabled={!ready(parsed)} onClick={submit}>{admin ? '저장' : '보내기'}</button>
+      </div>
+    </Modal>
   );
+}
+
+/** 승인을 기다리는 반복업무(목록 안에 '검토 중'으로 함께 보인다). */
+export const pendingDuties = (s: State, unitId: string) =>
+  proposalsOfUnit(s, unitId).filter(p => p.state === 'pending').flatMap(p => p.duties.map((d, i) => ({...d, key: `${p.id}:${i}`})));
+
+/** 반복업무 변경 기록 — 문서 맨 아래(관리 정보는 본문과 떨어뜨린다). 승인·반려된 것만, 없으면 칸을 두지 않는다. */
+export const stdDone = (s: State, unitId: string) => proposalsOfUnit(s, unitId).filter(p => p.state !== 'pending').slice().reverse();
+export function StdHistory({s, unitId}: {s: State; unitId: string}) {
+  const done = stdDone(s, unitId);
+  if (!done.length) return null;
+  return <div className="std">{done.slice(0, 5).map(p => <PropRow key={p.id} s={s} p={p} />)}</div>;
 }
 
 function PropRow({s, p}: {s: State; p: Proposal}) {
   const st = p.state === 'pending' ? '검토 중' : p.state === 'approved' ? `${nameOf(s, p.decidedBy)} 님 승인` : `반려 · ${p.reason || '사유 없음'}`;
   return (
     <div className={`prop ${p.state}`}>
-      <span className="pd">{dateLabel(p.at.slice(0, 10)).replace(/ \(.\)$/, '')} · {nameOf(s, p.by)} 님이 {p.newUnit ? `새 업무 '${p.newUnit.name}' 만듦` : '더함'}</span>
+      <span className="pd">{dateLabel(p.at.slice(0, 10)).replace(/ \(.\)$/, '')} · {nameOf(s, p.by)} 님이 {p.newUnit ? `새 업무 '${p.newUnit.name}' 추가` : '추가'}</span>
       <ul>{p.duties.map((d, i) => <li key={i}><b>{d.title}</b> <span>{ruleLabel(d.rule)}</span></li>)}</ul>
       <span className="ps">{st}</span>
     </div>
@@ -101,7 +104,7 @@ export function NewUnitModal({s, setS, toast, onClose, onMade}: {s: State; setS:
   const ok = !!name.trim() && !!sname && ready(parsed);
   const dup = s.units.some(u => u.org === orgOf(s) && u.name === name.trim());
   return (
-    <Modal title="업무 만들기" onCancel={onClose}>
+    <Modal title="업무 추가" onCancel={onClose}>
       <div className="compose">
         <label className="fld"><span>업무 이름</span>
           <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="예) 차량 관리" />
@@ -117,34 +120,37 @@ export function NewUnitModal({s, setS, toast, onClose, onMade}: {s: State; setS:
         <div className="fld"><span>반복업무 <em>한 줄에 하나, 주기를 앞에</em></span>
           <DutyLines lines={lines} setLines={setLines} />
         </div>
-        <small className="hint">{!sname ? '' : admin ? '만들면 기준표에 바로 들어가고 내 업무가 됩니다' : `${seriesAdminsOf(s, sname).length ? `${sname} 분류 관리자` : '업무 표준 총괄 관리자'}(${who(s, sname)})가 승인하면 기준표에 들어가고 내 업무가 됩니다`}</small>
+        <small className="hint">{!sname ? '' : admin ? '저장하면 기준표에 바로 들어가고 내 업무가 됩니다' : `${seriesAdminsOf(s, sname).length ? `${sname} 분류 관리자` : '업무 표준 총괄 관리자'}(${who(s, sname)})가 승인하면 기준표에 들어가고 내 업무가 됩니다`}</small>
       </div>
       <div className="mb">
         <button className="ghost" onClick={onClose}>취소</button>
         <button className="primary" disabled={!ok || dup} onClick={() => {
           setS(propose(s, {newUnit: {name: name.trim(), series: sname}, duties: parsed.map(l => ({title: l.title, rule: l.rule!}))}));
-          toast(admin ? `'${name.trim()}' 업무를 만들었습니다` : `${who(s, sname)} 님에게 올렸습니다. 승인되면 내 업무에 들어갑니다`);
+          toast(admin ? `'${name.trim()}' 업무를 추가했습니다` : `${who(s, sname)} 님에게 보냈습니다. 승인되면 내 업무에 들어갑니다`);
           onClose(); onMade?.();
-        }}>{admin ? '만들기' : '관리자에게 올리기'}</button>
+        }}>{admin ? '저장' : '보내기'}</button>
       </div>
     </Modal>
   );
 }
 
-/** 내 정보: 관리자는 검토할 것, 그 밖의 사람은 내가 올린 것. */
+/**
+ * 업무지식 맨 위: 관리자는 검토할 것(있을 때만 — 지금 할 일이 없으면 칸을 두지 않는다), 그 밖의 사람은 내가 보낸 것.
+ * 분류별 관리자 정하기는 드문 설정이라 내 정보(SeriesAdminsCard)로.
+ */
 export function StandardCard({s, setS, toast}: {s: State; setS: (s: State) => void; toast: (m: string) => void}) {
   const [reason, setReason] = useState<Record<string, string>>({});
   if (isStdAdmin(s)) {
     const list = pendingProposals(s);
+    if (!list.length) return null;
     const scope = isStdMaster(s) ? '총괄 관리자 · 모든 분류' : `${myAdminSeries(s).join(', ')} 분류 관리자`;
     return (
       <>
       <div className="card">
         <div className="sec-h"><h3 className="dept">업무 표준 검토 {list.length}</h3><span className="scope">{scope}</span></div>
-        {list.length === 0 && <p className="none">검토할 것이 없습니다</p>}
         {list.map(p => (
           <div key={p.id} className="review">
-            <p className="rv-h"><b>{nameOf(s, p.by)}</b> 님 · {p.newUnit ? `새 업무 '${p.newUnit.name}'` : `${unitById(s, p.unitId!)?.name}에 더하기`} · {p.newUnit?.series ?? unitById(s, p.unitId!)?.series}</p>
+            <p className="rv-h"><b>{nameOf(s, p.by)}</b> 님 · {p.newUnit ? `새 업무 '${p.newUnit.name}'` : `${unitById(s, p.unitId!)?.name}에 반복업무 추가`} · {p.newUnit?.series ?? unitById(s, p.unitId!)?.series}</p>
             <ul>{p.duties.map((d, i) => <li key={i}><b>{d.title}</b> <span>{ruleLabel(d.rule)}</span></li>)}</ul>
             <div className="rv-act">
               <input placeholder="반려 사유 (반려할 때만)" value={reason[p.id] ?? ''} onChange={e => setReason({...reason, [p.id]: e.target.value})} />
@@ -154,7 +160,6 @@ export function StandardCard({s, setS, toast}: {s: State; setS: (s: State) => vo
           </div>
         ))}
       </div>
-      {isStdMaster(s) && <SeriesAdmins s={s} setS={setS} toast={toast} />}
       </>
     );
   }
@@ -162,13 +167,16 @@ export function StandardCard({s, setS, toast}: {s: State; setS: (s: State) => vo
   if (!mine.length) return null;
   return (
     <div className="card">
-      <div className="sec-h"><h3 className="dept">내가 올린 업무 표준</h3></div>
+      <div className="sec-h"><h3 className="dept">내가 보낸 업무 표준</h3></div>
       {mine.slice(0, 5).map(p => <PropRow key={p.id} s={s} p={p} />)}
     </div>
   );
 }
 
-/** 마스터: 분류마다 관리자 한 명. 비워 두면 그 분류는 마스터가 승인한다. */
+/** 내 정보(총괄 관리자만): 분류마다 관리자 한 명. 비워 두면 그 분류는 총괄 관리자가 승인한다. */
+export function SeriesAdminsCard({s, setS, toast}: {s: State; setS: (s: State) => void; toast: (m: string) => void}) {
+  return isStdMaster(s) ? <SeriesAdmins s={s} setS={setS} toast={toast} /> : null;
+}
 function SeriesAdmins({s, setS, toast}: {s: State; setS: (s: State) => void; toast: (m: string) => void}) {
   const people = s.people.filter(p => p.org === orgOf(s) && !stdMasters(s).includes(p.id));
   return (
